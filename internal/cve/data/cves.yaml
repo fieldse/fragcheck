@@ -1,0 +1,199 @@
+# CVE dataset for linux-vuln-auditor.
+#
+# WARNING — PROVISIONAL DATA. The kernel version ranges, per-distro fixed
+# package versions, CVSS scores, and exploit preconditions below have NOT been
+# confirmed against authoritative advisories. Every entry is marked
+# `verified: false`. Until an entry is verified, treat its verdicts as
+# indicative only. Verify against the vendor/NVD advisory before relying on it.
+#
+# Schema: see internal/cve/types.go.
+
+cves:
+  # ---- Primary: 2026 page-cache-write privilege-escalation family ----
+
+  - id: CVE-2022-0847
+    nickname: Dirty Pipe
+    advisory: ""
+    cvss: 7.8
+    kev: false
+    verified: false
+    description: >-
+      Uninitialized pipe-buffer flag allows a page-cache write that overwrites
+      read-only / SUID files, leading to root.
+    affected:
+      - introduced: "5.8"
+        fixed: "5.16.11"
+    distro_fixed:
+      ubuntu: ""   # TODO: confirm patched linux-image package version
+      debian: ""
+      rhel: ""
+    preconditions:
+      modules: []
+      needs_unpriv_userns: false
+    remediation: >-
+      Upgrade to kernel >= 5.16.11 (stable backports: 5.15.25, 5.10.102).
+      No general runtime mitigation; limit untrusted local users until patched.
+
+  - id: CVE-2026-31431
+    nickname: Copy Fail
+    advisory: GHSA-2274-3hgr-wxv6
+    cvss: 7.8
+    kev: false
+    verified: false
+    description: >-
+      algif_aead AF_ALG crypto logic bug yields a deterministic 4-byte
+      page-cache write, leading to root.
+    affected:
+      - introduced: ""
+        fixed: ""
+    distro_fixed:
+      ubuntu: ""
+      debian: ""
+      rhel: ""
+    preconditions:
+      modules: [algif_aead]
+      needs_unpriv_userns: false
+    remediation: >-
+      Apply the vendor kernel update once released. Interim: disable the AF_ALG
+      crypto user API by blacklisting algif_aead where it is not required.
+
+  - id: CVE-2026-43284
+    nickname: Dirty Frag (ESP)
+    advisory: ""
+    cvss: 7.8
+    kev: true
+    verified: false
+    description: >-
+      In-place ESP/IPsec decryption over unowned skb fragments writes into the
+      page cache, leading to root. Actively exploited.
+    affected:
+      - introduced: ""
+        fixed: ""
+    distro_fixed:
+      ubuntu: ""
+      debian: ""
+      rhel: ""
+    preconditions:
+      modules: [esp4, esp6]
+      needs_unpriv_userns: false
+    remediation: >-
+      Apply the vendor kernel update once released. Interim: where IPsec is not
+      in use, blacklist the esp4/esp6 modules to remove the code path.
+
+  - id: CVE-2026-43500
+    nickname: Dirty Frag (RxRPC)
+    advisory: ""
+    cvss: 7.8
+    kev: false
+    verified: false
+    description: >-
+      The Dirty Frag flaw in the RxRPC/AFS path: an out-of-bounds page-cache
+      write reachable through unprivileged syscalls, leading to root.
+    affected:
+      - introduced: ""
+        fixed: ""
+    distro_fixed:
+      ubuntu: ""
+      debian: ""
+      rhel: ""
+    preconditions:
+      modules: [rxrpc]
+      needs_unpriv_userns: false
+    remediation: >-
+      Apply the vendor kernel update once released. Interim: where AFS/RxRPC is
+      not in use, blacklist the rxrpc module to remove the code path.
+
+  - id: CVE-2026-46300
+    nickname: Fragnesia
+    advisory: ""
+    cvss: 7.8
+    kev: false
+    verified: false
+    description: >-
+      ESP-in-TCP loses the shared-fragment flag (a regression from the Dirty
+      Frag patch), allowing a page-cache write to root.
+    affected:
+      - introduced: ""
+        fixed: ""
+    distro_fixed:
+      ubuntu: ""
+      debian: ""
+      rhel: ""
+    preconditions:
+      modules: [esp4, esp6]
+      needs_unpriv_userns: false
+    remediation: >-
+      Apply the vendor kernel update once released. Interim: where IPsec is not
+      in use, blacklist the esp4/esp6 modules to remove the code path.
+
+  # ---- Secondary: well-documented legacy privilege escalation ----
+
+  - id: CVE-2024-1086
+    nickname: nf_tables UAF
+    advisory: ""
+    cvss: 7.8
+    kev: true
+    verified: false
+    description: >-
+      netfilter nf_tables use-after-free allowing local privilege escalation
+      to root.
+    affected:
+      - introduced: "5.14"
+        fixed: "6.8"
+    distro_fixed:
+      ubuntu: ""
+      debian: ""
+      rhel: ""
+    preconditions:
+      modules: [nf_tables]
+      needs_unpriv_userns: true
+    remediation: >-
+      Upgrade to a patched kernel (>= 6.8 upstream, or the distro backport).
+      Interim: disable unprivileged user namespaces
+      (sysctl kernel.unprivileged_userns_clone=0) and/or blacklist nf_tables.
+
+  - id: CVE-2023-0386
+    nickname: OverlayFS privesc
+    advisory: ""
+    cvss: 7.8
+    kev: false
+    verified: false
+    description: >-
+      OverlayFS improper ownership handling on copy-up allows local privilege
+      escalation to root.
+    affected:
+      - introduced: "5.11"
+        fixed: "6.2"
+    distro_fixed:
+      ubuntu: ""
+      debian: ""
+      rhel: ""
+    preconditions:
+      modules: [overlay]
+      needs_unpriv_userns: true
+    remediation: >-
+      Upgrade to a patched kernel (>= 6.2 upstream, or the distro backport).
+      Interim: disable unprivileged user namespaces.
+
+  - id: CVE-2023-32233
+    nickname: netfilter nf_tables UAF
+    advisory: ""
+    cvss: 7.8
+    kev: false
+    verified: false
+    description: >-
+      netfilter nf_tables use-after-free in basic chain deletion allowing local
+      privilege escalation to root.
+    affected:
+      - introduced: ""
+        fixed: "6.4"
+    distro_fixed:
+      ubuntu: ""
+      debian: ""
+      rhel: ""
+    preconditions:
+      modules: [nf_tables]
+      needs_unpriv_userns: true
+    remediation: >-
+      Upgrade to a patched kernel (>= 6.4 upstream, or the distro backport).
+      Interim: disable unprivileged user namespaces and/or blacklist nf_tables.
