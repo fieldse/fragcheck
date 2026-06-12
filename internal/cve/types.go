@@ -39,6 +39,21 @@ type DistroFixed struct {
 	RHEL   string `yaml:"rhel"`
 }
 
+// For returns the recorded fixed package version for a distro family, or ""
+// when none is recorded. The argument is a model.Distro value (string-kinded).
+func (d DistroFixed) For(distro string) string {
+	switch distro {
+	case "ubuntu":
+		return d.Ubuntu
+	case "debian":
+		return d.Debian
+	case "rhel":
+		return d.RHEL
+	default:
+		return ""
+	}
+}
+
 // Preconditions are the host conditions an exploit needs to be reachable.
 type Preconditions struct {
 	// Modules are kernel modules whose code path the exploit requires. The
