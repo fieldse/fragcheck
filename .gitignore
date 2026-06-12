@@ -1,0 +1,67 @@
+# ---- Go ----
+# Compiled binaries / objects
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+*.o
+*.a
+
+# Project binary (built from cmd/)
+/linux-vuln-auditor
+/dist/
+/bin/
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Test & coverage artifacts
+*.cover
+coverage.*
+coverage.out
+profile.out
+*.prof
+*.pprof
+
+# Dependency vendoring (uncomment if not committing vendor/)
+# /vendor/
+
+# ---- macOS ----
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+Icon?
+
+# ---- Editors / IDEs ----
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+.*.swp
+
+# ---- Claude Code ----
+.claude/
+
+# ---- Env / local ----
+.env
+.env.*
+*.local
