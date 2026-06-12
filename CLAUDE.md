@@ -54,4 +54,31 @@ Note: Dirty Pipe (CVE-2022-0847) is the conceptual bridge between the two sets �
 
 ## Commands
 
-None yet — no Go module. Add build/test/run commands here once `go.mod` and entry points exist.
+```sh
+go build ./...                      # build all packages
+go vet ./...                        # static checks
+go test ./...                       # full test suite
+go test ./internal/detect/...       # the core verdict logic (golden fixtures)
+go test -run TestEvaluate ./internal/detect/...   # a single test
+go run ./cmd/linux-vuln-auditor             # run (table); refuses cleanly off Linux / non-root
+go run ./cmd/linux-vuln-auditor --json      # JSON output
+```
+
+Linux end-to-end (the collector only does real work on Linux). Cross-compile and run in a
+container as root:
+
+```sh
+mkdir -p bin
+GOOS=linux GOARCH=arm64 go build -o bin/lva-linux ./cmd/linux-vuln-auditor
+podman run --rm -v "$PWD/bin/lva-linux:/lva:ro" ubuntu:22.04 /lva
+```
+
+Exit codes: `0` audit completed (regardless of findings), `1` internal error (e.g. dataset load),
+`2` refused (non-Linux, not root, or unsupported distro).
+
+## Known follow-ups
+
+- The CVE dataset (`internal/cve/data/cves.yaml`) ships with `verified: false` on every entry —
+  kernel ranges and per-distro fixed versions are provisional placeholders. They must be confirmed
+  against authoritative advisories (and `verified` flipped to `true`) before verdicts are
+  trustworthy. Until then the 2026 entries correctly report `unknown` (no version data recorded).
