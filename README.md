@@ -30,6 +30,25 @@ It runs locally as root, needs no network, and ships as a single binary. It only
 
 By default, results print as a table: one row per CVE, showing the status, a severity rating, the evidence behind it, and the recommended fix. Pass `--json` for the same results in machine-readable form, suitable for piping into other tools.
 
+## Usage
+
+Common tasks are wrapped in the `Makefile` (run `make help` for the full list):
+
+```sh
+make build      # build the binary into bin/
+make test       # run the full test suite
+make check      # format, vet, and test
+make run        # run the auditor (refuses cleanly off Linux / non-root)
+```
+
+The collector only does real work on Linux. To exercise it from another platform, cross-compile and run as root in a container:
+
+```sh
+make e2e        # build a Linux binary and run it in an Ubuntu container
+```
+
+Exit codes: `0` audit completed, `1` internal error, `2` refused (non-Linux, not root, or unsupported distribution).
+
 ## Project status
 
 Early development. Design notes in `docs/SPEC.md`; full CVE details in `docs/cves.md`.
