@@ -2,6 +2,7 @@ package detect
 
 import (
 	"fmt"
+	"regexp"
 
 	"github.com/fieldse/linux-vuln-auditor/internal/cve"
 	"github.com/fieldse/linux-vuln-auditor/internal/model"
@@ -22,24 +23,31 @@ func Run(ds *cve.Dataset, facts model.HostFacts, cmp VerCmp) []model.Verdict {
 	return out
 }
 
-// versionState is the outcome of the kernel-version check, judged on the
-// running kernel.
 type versionState int
 
 const (
-	verUnknown  versionState = iota // could not determine
-	verAffected                     // running kernel is in an affected range
-	verPatched                      // running kernel is patched / out of range
+	verUnknown versionState = iota
+	verAffected
+	verPatched
 )
 
-// precondState is the outcome of the exploit-precondition check.
 type precondState int
 
 const (
-	preReachable  precondState = iota // the exploit's path is reachable
-	preHardBlock                      // a hard block removes the path
-	preUnknown                        // reachability could not be confirmed
+	preReachable precondState = iota
+	preHardBlock
+	preUnknown
 )
+
+type configState int
+
+const (
+	configEnabled configState = iota
+	configDisabled
+	configUnknown
+)
+
+var seriesRE = regexp.MustCompile(`^(\d+\.\d+)`)
 
 func evaluate(e *cve.Entry, facts model.HostFacts, cmp VerCmp) model.Verdict {
 	v := model.Verdict{
@@ -52,9 +60,17 @@ func evaluate(e *cve.Entry, facts model.HostFacts, cmp VerCmp) model.Verdict {
 		v.Evidence = append(v.Evidence, "dataset entry unverified — ranges/preconditions provisional")
 	}
 
+	// A distro family that categorically lacks the feature is not affected.
+	for _, d := range e.UnaffectedDistros {
+		if d == string(facts.Distro) {
+			v.Status = model.StatusNotAffected
+			v.Evidence = append(v.Evidence, fmt.Sprintf("%s is not affected (feature absent on this distro)", facts.Distro))
+			return v
+		}
+	}
+
 	verState, confirmed, verEv := evalVersion(e, facts, cmp)
 	v.Evidence = append(v.Evidence, verEv...)
-
 	switch verState {
 	case verUnknown:
 		v.Status = model.StatusUnknown
@@ -64,119 +80,156 @@ func evaluate(e *cve.Entry, facts model.HostFacts, cmp VerCmp) model.Verdict {
 		return v
 	}
 
-	// Running kernel is in an affected range; weigh the preconditions.
+	// Affected by version. A required kernel feature being compiled out means
+	// the flaw is not present regardless of version.
+	cfgState, cfgEv := evalConfigs(e, facts)
+	v.Evidence = append(v.Evidence, cfgEv...)
+	if cfgState == configDisabled {
+		v.Status = model.StatusNotAffected
+		return v
+	}
+
 	preState, preEv := evalPreconditions(e, facts)
 	v.Evidence = append(v.Evidence, preEv...)
 
-	switch preState {
-	case preHardBlock:
+	switch {
+	case preState == preHardBlock:
 		v.Status = model.StatusMitigated
-	case preUnknown:
+	case preState == preUnknown || cfgState == configUnknown:
 		v.Status = model.StatusLikelyVulnerable
-	default: // preReachable
-		if confirmed {
-			v.Status = model.StatusVulnerable
-		} else {
-			// Affected by version-only signal (no package-DB backport
-			// confirmation): caution, but not a confirmed verdict.
-			v.Status = model.StatusLikelyVulnerable
-		}
+	case confirmed:
+		v.Status = model.StatusVulnerable
+	default:
+		// Reachable, but the version signal was upstream-only (no backport
+		// confirmation): caution rather than a confirmed verdict.
+		v.Status = model.StatusLikelyVulnerable
 	}
 	return v
 }
 
 // evalVersion decides whether the running kernel is affected. confirmed is true
-// only when the decision used the package DB (backport-corrected); a version-
-// only decision is provisional.
-func evalVersion(e *cve.Entry, facts model.HostFacts, cmp VerCmp) (state versionState, confirmed bool, evidence []string) {
+// when the decision used a per-distro-release fixed version (backport-aware); a
+// decision from upstream branch fixes alone is provisional.
+func evalVersion(e *cve.Entry, facts model.HostFacts, cmp VerCmp) (versionState, bool, []string) {
 	running := facts.RunningKernel
 	if !running.Known {
 		return verUnknown, false, []string{"running kernel version unreadable: " + running.Err}
 	}
+	up := running.Value
 
-	fixed := e.DistroFixed.For(string(facts.Distro))
-	if facts.PackageDBAvailable && fixed != "" {
-		// Backport-corrected: compare the running kernel against the distro's
-		// patched package version.
-		if cmp(running.Value, fixed) >= 0 {
-			return verPatched, true, []string{fmt.Sprintf("running kernel %s >= %s fixed (%s)", running.Value, facts.Distro, fixed)}
-		}
-		ev := []string{fmt.Sprintf("running kernel %s < %s fixed (%s)", running.Value, facts.Distro, fixed)}
-		// Reboot gap: a patched kernel may be installed but not yet running.
-		if inst := facts.InstalledKernel; inst.Known && cmp(inst.Value, fixed) >= 0 {
-			ev = append(ev, fmt.Sprintf("patched kernel %s installed — reboot pending", inst.Value))
-		}
-		return verAffected, true, ev
+	if e.Introduced != "" && cmp(up, e.Introduced) < 0 {
+		return verPatched, true, []string{fmt.Sprintf("running kernel %s predates introduction %s", up, e.Introduced)}
 	}
 
-	// Fallback: upstream version ranges only (no package DB / no recorded
-	// distro fix). Lower confidence; backports are invisible here.
-	return evalUpstreamRanges(e, running.Value, cmp)
+	// Authoritative: compare the running kernel's package version against the
+	// fixed package version for this exact distro release.
+	if fixed := e.DistroFixed.For(string(facts.Distro), facts.DistroVersionID); facts.PackageDBAvailable && fixed != "" {
+		if pkg := facts.RunningKernelPackage; pkg.Known {
+			label := fmt.Sprintf("%s %s", facts.Distro, facts.DistroVersionID)
+			if cmp(pkg.Value, fixed) >= 0 {
+				return verPatched, true, []string{fmt.Sprintf("running %s kernel package %s >= fixed %s", label, pkg.Value, fixed)}
+			}
+			ev := []string{fmt.Sprintf("running %s kernel package %s < fixed %s", label, pkg.Value, fixed)}
+			if inst := facts.InstalledKernel; inst.Known && cmp(inst.Value, fixed) >= 0 {
+				ev = append(ev, fmt.Sprintf("patched kernel %s installed — reboot pending", inst.Value))
+			}
+			return verAffected, true, ev
+		}
+		// Distro fix recorded but running package version unreadable — fall
+		// through to the upstream branch signal below.
+	}
+
+	// Fallback: match the running kernel's stable series to a branch fix.
+	if fixed, ok := matchBranch(up, e.Branches); ok {
+		if cmp(up, fixed) >= 0 {
+			return verPatched, false, []string{fmt.Sprintf("running kernel %s >= branch fix %s (upstream-only, backports not checked)", up, fixed)}
+		}
+		return verAffected, false, []string{fmt.Sprintf("running kernel %s < branch fix %s (upstream-only, backports not checked)", up, fixed)}
+	}
+	return verUnknown, false, []string{fmt.Sprintf("no per-release fix or matching branch for running kernel %s", up)}
 }
 
-func evalUpstreamRanges(e *cve.Entry, running string, cmp VerCmp) (versionState, bool, []string) {
-	usable := false
-	for _, r := range e.Affected {
-		if r.Introduced == "" && r.Fixed == "" {
-			continue
-		}
-		usable = true
-		aboveFloor := r.Introduced == "" || cmp(running, r.Introduced) >= 0
-		belowFix := r.Fixed == "" || cmp(running, r.Fixed) < 0
-		if aboveFloor && belowFix {
-			return verAffected, false, []string{fmt.Sprintf("running kernel %s in affected range [%s, %s) (version-only, backports not checked)", running, orAny(r.Introduced), orAny(r.Fixed))}
+// matchBranch returns the fixed version for the stable series of the running
+// kernel (e.g. running 6.12.x matches branch series "6.12").
+func matchBranch(running string, branches []cve.Branch) (string, bool) {
+	s := seriesRE.FindString(running)
+	if s == "" {
+		return "", false
+	}
+	for _, b := range branches {
+		if b.Series == s {
+			return b.Fixed, true
 		}
 	}
-	if !usable {
-		return verUnknown, false, []string{"no version range recorded for this CVE"}
+	return "", false
+}
+
+// evalConfigs reports whether the kernel features the exploit needs are built.
+// Any required config known-disabled makes the host not affected; an unreadable
+// required config yields unknown.
+func evalConfigs(e *cve.Entry, facts model.HostFacts) (configState, []string) {
+	var ev []string
+	unknown := false
+	for _, name := range e.Preconditions.Configs {
+		f := facts.Config(name)
+		switch {
+		case !f.Known:
+			unknown = true
+			ev = append(ev, name+": state unknown")
+		case f.Value == "" || f.Value == "n":
+			return configDisabled, append(ev, name+": not enabled")
+		default:
+			ev = append(ev, name+"="+f.Value)
+		}
 	}
-	return verPatched, false, []string{fmt.Sprintf("running kernel %s outside all recorded affected ranges", running)}
+	if unknown {
+		return configUnknown, ev
+	}
+	return configEnabled, ev
 }
 
 // evalPreconditions checks the modules and namespace settings the exploit
-// requires. A hard block on any required condition mitigates; an unreadable
-// required condition yields unknown; otherwise the path is reachable.
+// requires. A hard block mitigates; an unreadable required condition yields
+// unknown; otherwise the path is reachable.
 func evalPreconditions(e *cve.Entry, facts model.HostFacts) (precondState, []string) {
 	p := e.Preconditions
-	var evidence []string
+	var ev []string
 	unknown := false
 
 	for _, name := range p.Modules {
 		m := facts.Module(name)
 		if !m.Known {
 			unknown = true
-			evidence = append(evidence, "module "+name+": state unknown")
+			ev = append(ev, "module "+name+": state unknown")
 			continue
 		}
 		if m.HardBlocked() {
-			return preHardBlock, append(evidence, "module "+name+": blacklisted/disabled (hard block)")
+			return preHardBlock, append(ev, "module "+name+": blacklisted/disabled (hard block)")
 		}
-		evidence = append(evidence, "module "+name+": "+moduleReachabilityDesc(m))
+		ev = append(ev, "module "+name+": "+moduleReachabilityDesc(m))
 	}
 
 	if p.NeedsUnprivUserns {
-		switch s := unprivUsernsState(facts); s {
+		switch unprivUsernsState(facts) {
 		case usernsOff:
-			return preHardBlock, append(evidence, "unprivileged user namespaces disabled (hard block)")
+			return preHardBlock, append(ev, "unprivileged user namespaces disabled (hard block)")
 		case usernsUnknown:
 			unknown = true
-			evidence = append(evidence, "unprivileged user namespaces: state unknown")
+			ev = append(ev, "unprivileged user namespaces: state unknown")
 		default:
-			evidence = append(evidence, "unprivileged user namespaces enabled")
+			ev = append(ev, "unprivileged user namespaces enabled")
 		}
 	}
 
 	if unknown {
-		return preUnknown, evidence
+		return preUnknown, ev
 	}
 	if len(p.Modules) == 0 && !p.NeedsUnprivUserns {
-		evidence = append(evidence, "no module/namespace precondition gates this exploit")
+		ev = append(ev, "no module/namespace precondition gates this exploit")
 	}
-	return preReachable, evidence
+	return preReachable, ev
 }
 
-// moduleReachabilityDesc reports both how the module is present now and whether
-// it is reachable, so the evidence shows loaded-now vs autoload-reachable.
 func moduleReachabilityDesc(m model.ModuleState) string {
 	switch {
 	case m.Loaded:
@@ -198,17 +251,15 @@ const (
 	usernsUnknown
 )
 
-// unprivUsernsState reads the two sysctls that gate unprivileged user
-// namespaces. Either being explicitly off is a hard block.
+// unprivUsernsState reads the sysctls that gate unprivileged user namespaces.
+// Either knob being explicitly off is a hard block.
 func unprivUsernsState(facts model.HostFacts) usernsResult {
-	// Debian/Ubuntu knob.
 	if clone := facts.Sysctl("kernel.unprivileged_userns_clone"); clone.Known {
 		if clone.Value == "0" {
 			return usernsOff
 		}
 		return usernsOn
 	}
-	// Generic cap on user namespaces.
 	if maxNS := facts.Sysctl("user.max_user_namespaces"); maxNS.Known {
 		if maxNS.Value == "0" {
 			return usernsOff
@@ -216,11 +267,4 @@ func unprivUsernsState(facts model.HostFacts) usernsResult {
 		return usernsOn
 	}
 	return usernsUnknown
-}
-
-func orAny(s string) string {
-	if s == "" {
-		return "*"
-	}
-	return s
 }

@@ -76,13 +76,25 @@ type HostFacts struct {
 	Distro          Distro
 	DistroVersionID string
 
-	// RunningKernel is the kernel reported by uname; verdicts are judged on it.
+	// RunningKernel is the upstream release reported by uname -r; verdicts are
+	// judged on it, and it drives upstream per-branch matching.
 	RunningKernel Fact[string]
 
-	// InstalledKernel is the kernel package version from the package DB
-	// (dpkg/rpm). When it is newer than RunningKernel a patch is installed but
-	// pending a reboot — the host is still judged on the running kernel.
+	// RunningKernelPackage is the installed package version of the *running*
+	// kernel (dpkg-query on linux-image-$(uname -r), or rpm). Unlike the uname
+	// string it reflects distro backports, so it is the value compared against
+	// per-distro-release fixed versions.
+	RunningKernelPackage Fact[string]
+
+	// InstalledKernel is the newest kernel package version installed. When it is
+	// newer than the running kernel a patch is installed but pending a reboot —
+	// the host is still judged on the running kernel.
 	InstalledKernel Fact[string]
+
+	// KernelConfigs holds build-config values (CONFIG_X -> "y"/"m"/"n") read
+	// from /boot/config-$(uname -r) or /proc/config.gz, used to gate CVEs whose
+	// exploit requires a kernel feature to be compiled in.
+	KernelConfigs map[string]Fact[string]
 
 	// PackageDBAvailable is false on hosts without dpkg/rpm, where backport
 	// correction cannot be performed and verdicts fall back to version-only.
@@ -110,4 +122,13 @@ func (h HostFacts) Sysctl(name string) Fact[string] {
 		return v
 	}
 	return Unreadable[string]("sysctl not collected: " + name)
+}
+
+// Config returns the value Fact for a named kernel build config (e.g.
+// "CONFIG_INET_ESP"), unreadable if not collected.
+func (h HostFacts) Config(name string) Fact[string] {
+	if v, ok := h.KernelConfigs[name]; ok {
+		return v
+	}
+	return Unreadable[string]("kernel config not collected: " + name)
 }

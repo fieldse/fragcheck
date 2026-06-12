@@ -15,9 +15,11 @@ var rawDataset []byte
 // cveIDPattern matches a CVE identifier, e.g. CVE-2024-1086.
 var cveIDPattern = regexp.MustCompile(`^CVE-\d{4}-\d{4,}$`)
 
-// kernelVersionPattern requires a version to start with a digit (e.g. "5.16.11").
-// Empty bounds are permitted by callers; this only checks non-empty values.
-var kernelVersionPattern = regexp.MustCompile(`^\d`)
+// versionPattern requires a version to start with a digit (e.g. "5.16.11").
+var versionPattern = regexp.MustCompile(`^\d`)
+
+// seriesPattern matches a major.minor stable series, e.g. "6.12".
+var seriesPattern = regexp.MustCompile(`^\d+\.\d+$`)
 
 // Load parses and validates the embedded CVE dataset. It fails fast on a
 // malformed or structurally incomplete dataset so a bad catalogue can never
@@ -61,20 +63,29 @@ func (ds *Dataset) Validate() error {
 		if strings.TrimSpace(e.Remediation) == "" {
 			return fmt.Errorf("%s: missing remediation", where)
 		}
-		if len(e.Affected) == 0 {
-			return fmt.Errorf("%s: needs at least one affected range", where)
+		if e.Introduced != "" && !versionPattern.MatchString(e.Introduced) {
+			return fmt.Errorf("%s: introduced %q is not a version", where, e.Introduced)
 		}
-		for j, r := range e.Affected {
-			if r.Introduced == "" && r.Fixed == "" {
-				continue // an all-empty range is a recorded "unknown bound"
+		if !hasVersionSignal(e) {
+			return fmt.Errorf("%s: no version signal (need a branch, distro fix, or introduced bound)", where)
+		}
+		for j, b := range e.Branches {
+			if !seriesPattern.MatchString(b.Series) {
+				return fmt.Errorf("%s: branches[%d] series %q is not major.minor", where, j, b.Series)
 			}
-			if r.Introduced != "" && !kernelVersionPattern.MatchString(r.Introduced) {
-				return fmt.Errorf("%s: affected[%d] introduced %q is not a version", where, j, r.Introduced)
-			}
-			if r.Fixed != "" && !kernelVersionPattern.MatchString(r.Fixed) {
-				return fmt.Errorf("%s: affected[%d] fixed %q is not a version", where, j, r.Fixed)
+			if !versionPattern.MatchString(b.Fixed) {
+				return fmt.Errorf("%s: branches[%d] fixed %q is not a version", where, j, b.Fixed)
 			}
 		}
 	}
 	return nil
+}
+
+// hasVersionSignal reports whether an entry carries enough to make any version
+// decision: a branch fix, a per-distro fix, or at least an introduced bound.
+func hasVersionSignal(e Entry) bool {
+	if e.Introduced != "" || len(e.Branches) > 0 {
+		return true
+	}
+	return len(e.DistroFixed.Ubuntu)+len(e.DistroFixed.Debian)+len(e.DistroFixed.RHEL) > 0
 }
