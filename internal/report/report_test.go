@@ -42,6 +42,7 @@ func TestTableNoColor(t *testing.T) {
 		"CVE-2024-1086", "nf_tables UAF", "7.8", "yes", "vulnerable",
 		"CVE-2022-0847", "not-affected",
 		"module nf_tables: loaded (reachable)", "fix: upgrade kernel",
+		"Summary:", "1 vulnerable", "1 not-affected",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("table output missing %q\n%s", want, out)

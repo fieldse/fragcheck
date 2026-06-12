@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/fieldse/linux-vuln-auditor/internal/model"
@@ -66,7 +67,36 @@ func Table(w io.Writer, verdicts []model.Verdict, color bool) error {
 			fmt.Fprintf(w, "    fix: %s\n", v.Remediation)
 		}
 	}
+
+	fmt.Fprintf(w, "\nSummary: %s\n", summarize(verdicts, c))
 	return nil
+}
+
+// summaryOrder lists statuses worst-first for the footer count.
+var summaryOrder = []model.Status{
+	model.StatusVulnerable,
+	model.StatusLikelyVulnerable,
+	model.StatusMitigated,
+	model.StatusNotAffected,
+	model.StatusUnknown,
+}
+
+// summarize builds a "N vulnerable, M not-affected, ..." line, omitting
+// zero-count statuses but always showing the vulnerable count.
+func summarize(verdicts []model.Verdict, c func(code, text string) string) string {
+	counts := map[model.Status]int{}
+	for _, v := range verdicts {
+		counts[v.Status]++
+	}
+	var parts []string
+	for _, s := range summaryOrder {
+		n := counts[s]
+		if n == 0 && s != model.StatusVulnerable {
+			continue
+		}
+		parts = append(parts, c(statusColor(s), fmt.Sprintf("%d %s", n, s)))
+	}
+	return strings.Join(parts, ", ")
 }
 
 // JSON writes verdicts as indented JSON. It never emits ANSI.

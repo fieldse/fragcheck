@@ -33,3 +33,13 @@ func TestRunRejectsUnknownFlag(t *testing.T) {
 		t.Errorf("exit code = %d, want %d for unknown flag", code, exitError)
 	}
 }
+
+func TestRunVersion(t *testing.T) {
+	var out, errBuf bytes.Buffer
+	if code := run([]string{"--version"}, &out, &errBuf, false); code != exitOK {
+		t.Errorf("exit code = %d, want %d", code, exitOK)
+	}
+	if !strings.Contains(out.String(), "linux-vuln-auditor") {
+		t.Errorf("version output = %q", out.String())
+	}
+}

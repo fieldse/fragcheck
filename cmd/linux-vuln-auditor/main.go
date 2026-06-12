@@ -31,6 +31,9 @@ const (
 // wedged tool cannot hang the audit.
 const collectTimeout = 30 * time.Second
 
+// version is overridable at build time: -ldflags "-X main.version=v1.0.0".
+var version = "dev"
+
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr, colorAllowed(os.Stdout)))
 }
@@ -39,8 +42,13 @@ func run(args []string, stdout, stderr io.Writer, colorAllowed bool) int {
 	fs := flag.NewFlagSet("linux-vuln-auditor", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	jsonOut := fs.Bool("json", false, "emit results as JSON instead of a table")
+	showVersion := fs.Bool("version", false, "print version and exit")
 	if err := fs.Parse(args); err != nil {
 		return exitError
+	}
+	if *showVersion {
+		fmt.Fprintf(stdout, "linux-vuln-auditor %s\n", version)
+		return exitOK
 	}
 
 	if runtime.GOOS != "linux" {
