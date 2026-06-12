@@ -66,6 +66,23 @@ func TestParseBlacklist(t *testing.T) {
 	}
 }
 
+func TestParseKernelConfig(t *testing.T) {
+	data := "# comment\nCONFIG_INET_ESP=m\nCONFIG_XFRM=y\n# CONFIG_AF_RXRPC is not set\nCONFIG_NAME=\"quoted\"\n"
+	got := parseKernelConfig(data)
+	if got["CONFIG_INET_ESP"] != "m" {
+		t.Errorf("CONFIG_INET_ESP = %q, want m", got["CONFIG_INET_ESP"])
+	}
+	if got["CONFIG_XFRM"] != "y" {
+		t.Errorf("CONFIG_XFRM = %q, want y", got["CONFIG_XFRM"])
+	}
+	if _, present := got["CONFIG_AF_RXRPC"]; present {
+		t.Errorf("CONFIG_AF_RXRPC should be absent (is-not-set line), got present")
+	}
+	if got["CONFIG_NAME"] != "quoted" {
+		t.Errorf("CONFIG_NAME = %q, want quoted", got["CONFIG_NAME"])
+	}
+}
+
 func TestFallbackCompare(t *testing.T) {
 	tests := []struct {
 		a, b string

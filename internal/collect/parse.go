@@ -116,6 +116,25 @@ func parseBlacklist(data string) map[string]bool {
 	return set
 }
 
+// parseKernelConfig returns the set CONFIG_* options from a kernel build config
+// (the contents of /boot/config-<rel> or decompressed /proc/config.gz). Lines
+// like "CONFIG_X=y" are captured; "# CONFIG_X is not set" lines are skipped
+// (callers treat an absent key as disabled).
+func parseKernelConfig(data string) map[string]string {
+	set := map[string]string{}
+	sc := bufio.NewScanner(strings.NewReader(data))
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if k, v, ok := strings.Cut(line, "="); ok {
+			set[strings.TrimSpace(k)] = strings.Trim(strings.TrimSpace(v), `"`)
+		}
+	}
+	return set
+}
+
 // moduleBaseFromPath turns "kernel/net/netfilter/nf_tables.ko[.zst]" into
 // "nf_tables".
 func moduleBaseFromPath(path string) (string, bool) {
