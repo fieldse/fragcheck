@@ -2,9 +2,6 @@ BINARY := linux-vuln-auditor
 PKG    := ./cmd/linux-vuln-auditor
 BIN    := bin
 
-# Linux cross-compile target (override ARCH as needed, e.g. amd64).
-ARCH ?= arm64
-
 .DEFAULT_GOAL := build
 
 .PHONY: build
@@ -34,13 +31,20 @@ tidy: ## Tidy module dependencies
 .PHONY: check
 check: fmt vet test ## Format, vet, and test
 
+.PHONY: linux-amd64
+linux-amd64: ## Cross-compile a Linux x86-64 binary
+	GOOS=linux GOARCH=amd64 go build -o $(BIN)/$(BINARY)-linux-amd64 $(PKG)
+
+.PHONY: linux-arm64
+linux-arm64: ## Cross-compile a Linux arm64 binary
+	GOOS=linux GOARCH=arm64 go build -o $(BIN)/$(BINARY)-linux-arm64 $(PKG)
+
 .PHONY: linux
-linux: ## Cross-compile a Linux binary into bin/lva-linux
-	GOOS=linux GOARCH=$(ARCH) go build -o $(BIN)/lva-linux $(PKG)
+linux: linux-amd64 linux-arm64 ## Cross-compile both Linux architectures
 
 .PHONY: e2e
-e2e: linux ## Run the Linux binary as root in an Ubuntu container
-	podman run --rm -v "$(PWD)/$(BIN)/lva-linux:/lva:ro" ubuntu:22.04 /lva
+e2e: linux-arm64 ## Run the arm64 Linux binary as root in an Ubuntu container
+	podman run --rm -v "$(PWD)/$(BIN)/$(BINARY)-linux-arm64:/lva:ro" ubuntu:22.04 /lva
 
 .PHONY: clean
 clean: ## Remove build artifacts

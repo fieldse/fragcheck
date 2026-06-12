@@ -41,10 +41,13 @@ make check      # format, vet, and test
 make run        # run the auditor (refuses cleanly off Linux / non-root)
 ```
 
-The collector only does real work on Linux. To exercise it from another platform, cross-compile and run as root in a container:
+The collector only does real work on Linux. Cross-compile for a target architecture, or exercise the binary as root in a container:
 
 ```sh
-make e2e        # build a Linux binary and run it in an Ubuntu container
+make linux-amd64   # build bin/linux-vuln-auditor-linux-amd64
+make linux-arm64   # build bin/linux-vuln-auditor-linux-arm64
+make linux         # build both
+make e2e           # build arm64 and run it in an Ubuntu container
 ```
 
 Exit codes: `0` audit completed, `1` internal error, `2` refused (non-Linux, not root, or unsupported distribution).
