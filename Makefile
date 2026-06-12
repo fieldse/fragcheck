@@ -42,10 +42,6 @@ linux-arm64: ## Cross-compile a Linux arm64 binary
 .PHONY: linux
 linux: linux-amd64 linux-arm64 ## Cross-compile both Linux architectures
 
-.PHONY: e2e
-e2e: linux-arm64 ## Run the arm64 Linux binary as root in an Ubuntu container
-	podman run --rm -v "$(PWD)/$(BIN)/$(BINARY)-linux-arm64:/lva:ro" ubuntu:22.04 /lva
-
 .PHONY: clean
 clean: ## Remove build artifacts
 	rm -rf $(BIN)
