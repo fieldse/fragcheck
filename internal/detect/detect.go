@@ -146,7 +146,24 @@ func evalVersion(e *cve.Entry, facts model.HostFacts, cmp VerCmp) (versionState,
 		}
 		return verAffected, false, []string{fmt.Sprintf("running kernel %s < branch fix %s (upstream-only, backports not checked)", up, fixed)}
 	}
+	// No series match: a kernel newer than the highest (mainline) fix carries
+	// the fix in all later releases, so it is not affected.
+	if mx := maxFixed(e.Branches, cmp); mx != "" && cmp(up, mx) >= 0 {
+		return verPatched, true, []string{fmt.Sprintf("running kernel %s is newer than the latest fix %s", up, mx)}
+	}
 	return verUnknown, false, []string{fmt.Sprintf("no per-release fix or matching branch for running kernel %s", up)}
+}
+
+// maxFixed returns the highest fixed version across all branches (the mainline
+// fix point), or "" when there are no branches.
+func maxFixed(branches []cve.Branch, cmp VerCmp) string {
+	best := ""
+	for _, b := range branches {
+		if best == "" || cmp(b.Fixed, best) > 0 {
+			best = b.Fixed
+		}
+	}
+	return best
 }
 
 // matchBranch returns the fixed version for the stable series of the running

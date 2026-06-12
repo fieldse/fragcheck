@@ -185,6 +185,15 @@ func TestEvaluate(t *testing.T) {
 			want: model.StatusLikelyVulnerable,
 		},
 		{
+			name:  "not affected when newer than all branch fixes",
+			entry: entryNf(),
+			facts: model.HostFacts{
+				Distro: model.DistroDebian, DistroVersionID: "13", PackageDBAvailable: true,
+				RunningKernel: model.Readable("6.12.63"),
+			},
+			want: model.StatusNotAffected, wantEvHas: "newer than the latest fix",
+		},
+		{
 			name:  "unknown when running kernel unreadable",
 			entry: entryNf(),
 			facts: model.HostFacts{

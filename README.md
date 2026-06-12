@@ -24,7 +24,7 @@ A host running an old kernel is still reported as vulnerable even if a patched o
 
 ## Safety
 
-It runs locally as root, needs no network, and ships as a single binary. It only detects exposure — it never runs or includes exploit code.
+It runs locally, needs no network, and ships as a single binary. Root is recommended for the fullest signal but not required — anything it cannot read is reported as `unknown` rather than guessed. It only detects exposure — it never runs or includes exploit code.
 
 ## Output
 
@@ -49,7 +49,7 @@ make linux-arm64   # build bin/linux-vuln-auditor-linux-arm64
 make linux         # build both
 ```
 
-Exit codes: `0` audit completed, `1` internal error, `2` refused (non-Linux, not root, or unsupported distribution).
+Exit codes: `0` audit completed, `1` internal error, `2` refused (non-Linux or unsupported distribution).
 
 ## Project status
 

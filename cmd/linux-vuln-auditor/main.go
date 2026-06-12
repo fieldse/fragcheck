@@ -24,7 +24,7 @@ import (
 const (
 	exitOK     = 0 // audit completed
 	exitError  = 1 // internal error (e.g. dataset load failure)
-	exitRefuse = 2 // refused to run: wrong platform, not root, unsupported distro
+	exitRefuse = 2 // refused to run: wrong platform or unsupported distro
 )
 
 // collectTimeout bounds the host-inspection commands (dpkg/rpm/uname) so a
@@ -47,9 +47,11 @@ func run(args []string, stdout, stderr io.Writer, colorAllowed bool) int {
 		fmt.Fprintf(stderr, "linux-vuln-auditor: unsupported platform %q; this tool audits Linux hosts only\n", runtime.GOOS)
 		return exitRefuse
 	}
+	// Root is recommended for the fullest signal, but the audit reads mostly
+	// world-readable state; anything it cannot read degrades to an "unknown"
+	// verdict rather than refusing outright.
 	if os.Geteuid() != 0 {
-		fmt.Fprintln(stderr, "linux-vuln-auditor: must run as root to read kernel, package, and module state")
-		return exitRefuse
+		fmt.Fprintln(stderr, "linux-vuln-auditor: warning: not running as root; unreadable signals will be reported as unknown")
 	}
 
 	ds, err := cve.Load()
