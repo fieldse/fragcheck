@@ -40,13 +40,13 @@ Note: Dirty Pipe (CVE-2022-0847) is the conceptual bridge between the two sets �
 
 ## Design (locked — full spec in `docs/SPEC.md`)
 
-- **Toolchain:** Go 1.26. Module `github.com/fieldse/linux-vuln-auditor`, binary `linux-vuln-auditor`. Offline, assumes **root**, local host only.
+- **Toolchain:** Go 1.26. Module `github.com/fieldse/linux-vuln-auditor`, binary `linux-vuln-auditor`. Offline, local host only. Root is recommended for the fullest signal but not required — the audit reads mostly world-readable state, and anything unreadable degrades to an `unknown` verdict (warning printed when non-root).
 - **Architecture seam:** `internal/collect` (impure → `HostFacts`) + `internal/detect` (pure: facts + dataset → verdicts) + `cmd/`. Keeps detection testable with fixtures, no real host needed.
 - **Version source/compare:** installed kernel from package DB (`dpkg`/`rpm`, authoritative for backports); comparison shells out to native tools for correct distro semantics; backport-corrected for Ubuntu/Debian/RHEL.
 - **Reboot gap:** verdict judged on the **running** kernel; patched-but-not-rebooted → still `vulnerable` with a "reboot pending" note.
 - **Preconditions:** autoload-aware (loaded OR built-in OR autoloadable = present); evidence shows loaded-now vs autoload-reachable separately; only **hard blocks** demote to `mitigated`.
 - **Verdicts (5-state):** `vulnerable` / `likely-vulnerable` / `mitigated` / `not-affected` / `unknown`. Unsupported platform → refuse cleanly, non-zero exit, no table.
-- **Data:** `go:embed` YAML/JSON CVE defs (id, nickname, advisory, CVSS, KEV flag, upstream ranges, per-distro fixed pkg versions, preconditions, remediation = fixed version + mitigations).
+- **Data (v2):** `go:embed` YAML CVE defs — per-stable-branch fixed points, per-distro-*release* fixed package versions, `CONFIG_*` gates, required modules, per-CVE userns dependence, unaffected-distro list, CVSS/KEV, remediation. Detection: authoritative per-release package comparison (→ confirmed `vulnerable`), graceful upstream-branch fallback (→ `likely-vulnerable`), required-CONFIG-off → `not-affected`, kernel newer than the mainline fix → `not-affected`.
 - **Output:** default audits all CVEs → pretty table via stdlib `text/tabwriter` + manual ANSI (zero deps); `--json` for machine output. Columns: CVE, nickname, severity (CVSS+KEV), verdict, evidence, remediation.
 - **Testing:** golden `HostFacts` fixtures → asserted verdict tables, table-driven against `detect`.
 
@@ -54,4 +54,38 @@ Note: Dirty Pipe (CVE-2022-0847) is the conceptual bridge between the two sets �
 
 ## Commands
 
-None yet — no Go module. Add build/test/run commands here once `go.mod` and entry points exist.
+```sh
+go build ./...                      # build all packages
+go vet ./...                        # static checks
+go test ./...                       # full test suite
+go test ./internal/detect/...       # the core verdict logic (golden fixtures)
+go test -run TestEvaluate ./internal/detect/...   # a single test
+go run ./cmd/linux-vuln-auditor             # run (table); refuses cleanly off Linux / non-root
+go run ./cmd/linux-vuln-auditor --json      # JSON output
+```
+
+Linux end-to-end (the collector only does real work on Linux). Cross-compile and run in a
+container as root:
+
+```sh
+mkdir -p bin
+GOOS=linux GOARCH=arm64 go build -o bin/lva-linux ./cmd/linux-vuln-auditor
+podman run --rm -v "$PWD/bin/lva-linux:/lva:ro" ubuntu:22.04 /lva
+```
+
+Exit codes: `0` audit completed (regardless of findings), `1` internal error (e.g. dataset load),
+`2` refused (non-Linux or unsupported distro).
+
+## Known follow-ups
+
+- The **5 primary CVEs are `verified: true`**, populated from the source-of-truth knowledgebase
+  (`docs/cves.md` / the SecondBrain note). The knowledgebase flags that some point-releases were
+  single-sourced — re-validate against distro trackers before treating a single verdict as gospel.
+- **Missing Debian per-release fixes for Dirty Frag ESP/RxRPC** (`CVE-2026-43284` / `-43500`): the
+  knowledgebase had no Debian DSA, so on Debian these fall to the upstream-branch fallback and
+  report `likely-vulnerable` instead of confirmed `vulnerable`. Add `distro_fixed.debian` once the
+  DSA versions are known.
+- The **3 legacy CVEs remain `verified: false`** (provisional single-branch data; not in the
+  knowledgebase).
+- Verified end-to-end on a real Debian 13 host (kernel 6.12.63-1): Copy Fail confirmed
+  `vulnerable`, Fragnesia `not-affected` (espintcp not built), legacy/Dirty Pipe `not-affected`.

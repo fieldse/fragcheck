@@ -1,0 +1,280 @@
+# CVE dataset for linux-vuln-auditor.
+#
+# The five primary entries are populated from the project's source-of-truth
+# knowledgebase (page-cache-write LPE family, 2022-2026) and marked verified.
+# Per the knowledgebase, advisory IDs and a few stable point-releases were
+# single-sourced; re-validate against distro security trackers before treating
+# any single verdict as authoritative.
+#
+# The three legacy entries remain verified: false (provisional ranges).
+#
+# Schema: see internal/cve/types.go.
+
+cves:
+  # ---- Primary: page-cache-write privilege-escalation family ----
+
+  - id: CVE-2022-0847
+    nickname: Dirty Pipe
+    advisory: RHSB-2022-002
+    cvss: 7.8
+    kev: true
+    verified: true
+    description: >-
+      Uninitialized pipe-buffer flag allows a page-cache write that overwrites
+      read-only / SUID files, leading to root. No CONFIG, module, or userns
+      precondition — every shell user on a vulnerable kernel is an attacker.
+    introduced: "5.8"
+    branches:
+      - {series: "5.16", fixed: "5.16.11"}
+      - {series: "5.15", fixed: "5.15.25"}
+      - {series: "5.10", fixed: "5.10.102"}
+    distro_fixed:
+      debian:
+        "11": "5.10.103-1"   # bullseye (DSA-5092-1); buster/stretch not affected
+      ubuntu: {}             # per kernel stack (HWE 5.13<5.13.0-35.40, OEM 5.14<5.14.0-1027.30); GA 5.4/4.15 not affected
+      rhel:
+        "9": "5.14.0-0"      # RHEL 9 shipped patched at GA; RHEL 8 patched via RHSA-2022:0825; RHEL 7 not affected
+    preconditions:
+      modules: []
+      configs: []
+      needs_unpriv_userns: false
+    remediation: >-
+      Patch only — reboot required. SELinux/AppArmor/seccomp and kpatch do NOT
+      mitigate (core pipe code, not modularizable). Upstream fixes: 5.16.11 /
+      5.15.25 / 5.10.102.
+
+  - id: CVE-2026-31431
+    nickname: Copy Fail
+    advisory: GHSA-2274-3hgr-wxv6
+    cvss: 7.8   # CVSS HIGH per RHSB-2026-002; exact base score not recorded
+    kev: false
+    verified: true
+    description: >-
+      algif_aead AF_ALG crypto logic bug gives a deterministic 4-byte
+      page-cache write, leading to root. No unprivileged user namespaces needed,
+      so disabling userns does not mitigate.
+    introduced: "4.14"
+    branches:
+      - {series: "5.10", fixed: "5.10.254"}
+      - {series: "5.15", fixed: "5.15.204"}
+      - {series: "6.1",  fixed: "6.1.174"}
+      - {series: "6.6",  fixed: "6.6.137"}
+      - {series: "6.12", fixed: "6.12.85"}
+      - {series: "6.18", fixed: "6.18.22"}
+    distro_fixed:
+      ubuntu:
+        "22.04": "5.15.0-179.189"
+        "24.04": "6.8.0-117.117"
+      debian:
+        "11": "5.10.257-1"
+        "12": "6.1.174-1"
+        "13": "6.12.90-2"
+      rhel:
+        "8": "4.18.0-553.123.1.el8_10"
+        "9": "5.14.0-611.54.1.el9_7"
+    preconditions:
+      modules: [algif_aead]
+      configs: [CONFIG_CRYPTO_USER_API_AEAD]
+      needs_unpriv_userns: false
+    remediation: >-
+      Patch (reboot). Built-in (RHEL family): boot param
+      initcall_blacklist=algif_aead_init — modprobe blacklist is useless.
+      Module (=m): install algif_aead /bin/false + update-initramfs -u. Per
+      service: systemd RestrictAddressFamilies=~AF_ALG.
+
+  - id: CVE-2026-43284
+    nickname: Dirty Frag (ESP)
+    advisory: RHSB-2026-003
+    cvss: 8.8   # kernel.org; CISA-ADP scores it 7.8
+    kev: true
+    verified: true
+    description: >-
+      In-place ESP/IPsec decryption over unowned skb fragments writes into the
+      page cache, leading to root. Actively exploited in the wild. Requires
+      CAP_NET_ADMIN obtained via an unprivileged user namespace.
+    introduced: "4.11"
+    branches:
+      - {series: "5.10", fixed: "5.10.255"}
+      - {series: "5.15", fixed: "5.15.206"}
+      - {series: "6.1",  fixed: "6.1.172"}
+      - {series: "6.6",  fixed: "6.6.138"}
+      - {series: "6.12", fixed: "6.12.87"}
+      - {series: "6.18", fixed: "6.18.28"}
+      - {series: "7.0",  fixed: "7.0.5"}
+    distro_fixed:
+      ubuntu:
+        "22.04": "5.15.0-181.191"
+        "24.04": "6.8.0-124.124"
+      debian:               # debian security-tracker (CVE-2026-43284)
+        "11": "5.10.251-4"
+        "12": "6.1.170-3"
+        "13": "6.12.86-1"
+      rhel:
+        "8":  "4.18.0-553.123.2.el8_10"
+        "9":  "5.14.0-611.54.3.el9_7"
+        "10": "6.12.0-124.55.3.el10_1"
+    preconditions:
+      modules: [esp4, esp6]
+      configs: [CONFIG_INET_ESP, CONFIG_XFRM]
+      needs_unpriv_userns: true
+    remediation: >-
+      Patch (reboot). Where IPsec is unused, blacklist esp4/esp6
+      (install ... /bin/false) — breaks IPsec VPN. Red Hat preferred where
+      IPsec is needed: disable unprivileged userns
+      (user.max_user_namespaces=0) — blocks this path but NOT the RxRPC variant.
+
+  - id: CVE-2026-43500
+    nickname: Dirty Frag (RxRPC)
+    advisory: RHSB-2026-003
+    cvss: 7.8
+    kev: true
+    verified: true
+    description: >-
+      The Dirty Frag in-place-decrypt flaw in the RxRPC/AFS path: an OOB
+      page-cache write reachable purely through unprivileged syscalls (no userns,
+      no CAP_NET_ADMIN). Absent from RHEL 8 / Alma 8. Works where the ESP path is
+      blocked.
+    introduced: "5.3"
+    branches:
+      - {series: "5.10", fixed: "5.10.255"}
+      - {series: "5.15", fixed: "5.15.206"}
+      - {series: "6.1",  fixed: "6.1.172"}
+      - {series: "6.6",  fixed: "6.6.138"}
+      - {series: "6.12", fixed: "6.12.87"}
+      - {series: "6.18", fixed: "6.18.29"}
+      - {series: "7.0",  fixed: "7.0.6"}
+    distro_fixed:
+      ubuntu:
+        "22.04": "5.15.0-181.191"
+        "24.04": "6.8.0-124.124"
+      debian:               # debian security-tracker (CVE-2026-43500)
+        "11": "5.10.257-1"
+        "12": "6.1.174-1"
+        "13": "6.12.90-2"
+      rhel:
+        "9":  "5.14.0-611.54.3.el9_7"
+        "10": "6.12.0-124.55.3.el10_1"
+    preconditions:
+      modules: [rxrpc]
+      configs: [CONFIG_AF_RXRPC]
+      needs_unpriv_userns: false
+    remediation: >-
+      Patch (reboot). Where AFS/RxRPC is unused, blacklist rxrpc
+      (install rxrpc /bin/false + update-initramfs -u / dracut -f). Disabling
+      userns does NOT mitigate this variant.
+
+  - id: CVE-2026-46300
+    nickname: Fragnesia
+    advisory: RHSB-2026-003
+    cvss: 7.8
+    kev: false
+    verified: true
+    description: >-
+      XFRM ESP-in-TCP (espintcp) loses the SKBFL_SHARED_FRAG flag — a regression
+      created by the Dirty Frag patch — allowing a page-cache write to root.
+      Requires the Dirty Frag fix to be present (or never patched). Needs
+      unprivileged user namespaces.
+    introduced: "5.6"
+    branches:
+      - {series: "5.10", fixed: "5.10.258"}
+      - {series: "5.15", fixed: "5.15.208"}
+      - {series: "6.1",  fixed: "6.1.174"}
+      - {series: "6.6",  fixed: "6.6.141"}
+      - {series: "6.12", fixed: "6.12.91"}
+      - {series: "7.0",  fixed: "7.0.10"}
+    distro_fixed:
+      ubuntu:
+        "22.04": "5.15.0-181.191"
+        "24.04": "6.8.0-124.124"
+        "25.10": "6.17.0-35.35"
+        "26.04": "7.0.0-22.22"
+      debian:
+        "11": "6.1.174-1~deb11u1"
+        "12": "6.1.174-1"
+        "13": "6.12.90-2"
+      rhel:
+        "8":  "4.18.0-553.124.3.el8_10"
+        "9":  "5.14.0-611.54.5.el9_7"
+        "10": "6.12.0-124.56.3.el10_1"
+    unaffected_distros: [amazon]   # espintcp absent from Amazon Linux kernels
+    preconditions:
+      modules: [esp4, esp6]
+      configs: [CONFIG_INET_ESPINTCP, CONFIG_XFRM, CONFIG_INET_ESP]
+      needs_unpriv_userns: true
+    remediation: >-
+      Patch (reboot). Blacklist esp4/esp6 (install ... /bin/false) — breaks
+      IPsec ESP. Disable unprivileged userns (user.max_user_namespaces=0) —
+      breaks rootless containers. Ubuntu 23.10+
+      kernel.apparmor_restrict_unprivileged_userns=1 blocks the public PoC.
+
+  # ---- Secondary: legacy privilege escalation (provisional) ----
+
+  - id: CVE-2024-1086
+    nickname: nf_tables UAF
+    advisory: ""
+    cvss: 7.8
+    kev: true
+    verified: false
+    description: >-
+      netfilter nf_tables use-after-free allowing local privilege escalation.
+    introduced: "5.14"
+    branches:
+      - {series: "6.8", fixed: "6.8"}
+    distro_fixed:
+      ubuntu: {}
+      debian: {}
+      rhel: {}
+    preconditions:
+      modules: [nf_tables]
+      configs: []
+      needs_unpriv_userns: true
+    remediation: >-
+      Upgrade to a patched kernel. Interim: disable unprivileged user namespaces
+      and/or blacklist nf_tables.
+
+  - id: CVE-2023-0386
+    nickname: OverlayFS privesc
+    advisory: ""
+    cvss: 7.8
+    kev: false
+    verified: false
+    description: >-
+      OverlayFS improper ownership handling on copy-up allowing local privilege
+      escalation.
+    introduced: "5.11"
+    branches:
+      - {series: "6.2", fixed: "6.2"}
+    distro_fixed:
+      ubuntu: {}
+      debian: {}
+      rhel: {}
+    preconditions:
+      modules: [overlay]
+      configs: []
+      needs_unpriv_userns: true
+    remediation: >-
+      Upgrade to a patched kernel. Interim: disable unprivileged user namespaces.
+
+  - id: CVE-2023-32233
+    nickname: netfilter nf_tables UAF
+    advisory: ""
+    cvss: 7.8
+    kev: false
+    verified: false
+    description: >-
+      netfilter nf_tables use-after-free in chain deletion allowing local
+      privilege escalation.
+    introduced: ""
+    branches:
+      - {series: "6.4", fixed: "6.4"}
+    distro_fixed:
+      ubuntu: {}
+      debian: {}
+      rhel: {}
+    preconditions:
+      modules: [nf_tables]
+      configs: []
+      needs_unpriv_userns: true
+    remediation: >-
+      Upgrade to a patched kernel. Interim: disable unprivileged user namespaces
+      and/or blacklist nf_tables.
