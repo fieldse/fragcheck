@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"strings"
 
-	"github.com/fieldse/linux-vuln-auditor/internal/model"
+	"github.com/fieldse/fragcheck/internal/model"
 )
 
 // normalizeModule canonicalizes a module name. The kernel reports module names

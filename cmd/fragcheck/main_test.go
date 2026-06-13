@@ -39,7 +39,7 @@ func TestRunVersion(t *testing.T) {
 	if code := run([]string{"--version"}, &out, &errBuf, false); code != exitOK {
 		t.Errorf("exit code = %d, want %d", code, exitOK)
 	}
-	if !strings.Contains(out.String(), "linux-vuln-auditor") {
+	if !strings.Contains(out.String(), "fragcheck") {
 		t.Errorf("version output = %q", out.String())
 	}
 }

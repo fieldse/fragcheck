@@ -1,5 +1,5 @@
-BINARY := linux-vuln-auditor
-PKG    := ./cmd/linux-vuln-auditor
+BINARY := fragcheck
+PKG    := ./cmd/fragcheck
 BIN    := bin
 
 .DEFAULT_GOAL := build

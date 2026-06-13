@@ -6,8 +6,8 @@ import (
 	"testing"
 	"unicode"
 
-	"github.com/fieldse/linux-vuln-auditor/internal/cve"
-	"github.com/fieldse/linux-vuln-auditor/internal/model"
+	"github.com/fieldse/fragcheck/internal/cve"
+	"github.com/fieldse/fragcheck/internal/model"
 )
 
 // fakeCmp compares dotted/dashed numeric version strings field by field.

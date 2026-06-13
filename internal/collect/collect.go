@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/fieldse/linux-vuln-auditor/internal/cve"
-	"github.com/fieldse/linux-vuln-auditor/internal/model"
+	"github.com/fieldse/fragcheck/internal/cve"
+	"github.com/fieldse/fragcheck/internal/model"
 )
 
 // neededSysctls are the kernel knobs the detector reads by name: the two that

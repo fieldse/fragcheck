@@ -3,7 +3,7 @@ package collect
 import (
 	"testing"
 
-	"github.com/fieldse/linux-vuln-auditor/internal/model"
+	"github.com/fieldse/fragcheck/internal/model"
 )
 
 func TestParseOSRelease(t *testing.T) {
