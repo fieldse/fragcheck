@@ -30,26 +30,73 @@ It runs locally, needs no network, and ships as a single binary. Root is recomme
 
 By default, results print as a table: one row per CVE, showing the status, a severity rating, the evidence behind it, and the recommended fix. Pass `--json` for the same results in machine-readable form, suitable for piping into other tools.
 
+## Requirements
+
+- Go 1.26+
+- The target host being audited must be Linux. You can build and cross-compile from macOS or any other platform.
+
+## Build
+
+```sh
+git clone https://github.com/fieldse/fragcheck
+cd fragcheck
+make build          # produces bin/fragcheck
+```
+
+Or install directly into your Go bin:
+
+```sh
+go install github.com/fieldse/fragcheck/cmd/fragcheck@latest
+```
+
 ## Usage
 
-Common tasks are wrapped in the `Makefile` (run `make help` for the full list):
+Run the auditor on the local Linux host:
 
 ```sh
-make build      # build the binary into bin/
+# Table output (default)
+sudo ./bin/fragcheck
+
+# Machine-readable JSON
+sudo ./bin/fragcheck --json
+```
+
+Root is recommended for the fullest signal (`sudo`), but not required. Anything that can't be read without root is reported as `unknown` rather than skipped.
+
+### Auditing a remote or different-arch host
+
+The collector only does real work on Linux, so if you're building from macOS, cross-compile first:
+
+```sh
+make linux-amd64   # produces bin/fragcheck-linux-amd64
+make linux-arm64   # produces bin/fragcheck-linux-arm64
+make linux         # produces both
+```
+
+Then copy the binary to the target and run it, or test locally with a container:
+
+```sh
+make linux-arm64
+podman run --rm -v "$PWD/bin/fragcheck-linux-arm64:/fragcheck:ro" ubuntu:22.04 /fragcheck
+```
+
+### Makefile targets
+
+```sh
+make build      # build bin/fragcheck
 make test       # run the full test suite
 make check      # format, vet, and test
-make run        # run the auditor (refuses cleanly off Linux / non-root)
+make clean      # remove bin/
+make help       # list all targets
 ```
 
-The collector only does real work on Linux. Cross-compile for a target architecture:
+### Exit codes
 
-```sh
-make linux-amd64   # build bin/fragcheck-linux-amd64
-make linux-arm64   # build bin/fragcheck-linux-arm64
-make linux         # build both
-```
-
-Exit codes: `0` audit completed, `1` internal error, `2` refused (non-Linux or unsupported distribution).
+| Code | Meaning |
+|------|---------|
+| `0`  | Audit completed (findings may still be present) |
+| `1`  | Internal error (e.g. dataset failed to load) |
+| `2`  | Refused — not running on Linux, or unsupported distribution |
 
 ## Project status
 
