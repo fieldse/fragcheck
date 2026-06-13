@@ -1,6 +1,6 @@
 # Tracked CVEs
 
-The CVEs `linux-vuln-auditor` audits for. The **primary** set is the focus; the **secondary** set
+The CVEs `fragcheck` audits for. The **primary** set is the focus; the **secondary** set
 is a baseline of well-documented older privilege-escalation bugs.
 
 > Note: the 2026 CVEs are newer than the assistant's knowledge cutoff. The entries below are

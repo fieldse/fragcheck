@@ -11,7 +11,7 @@
 *.a
 
 # Project binary (built from cmd/)
-/linux-vuln-auditor
+/fragcheck
 /dist/
 /bin/
 

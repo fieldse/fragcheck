@@ -1,4 +1,4 @@
-# linux-vuln-auditor — Project Spec
+# fragcheck — Project Spec
 
 ## Purpose
 
@@ -23,9 +23,9 @@ A collector/detector seam keeps detection testable without real vulnerable hosts
   running kernel (`uname`), installed kernel **package** version (`dpkg`/`rpm`), distro
   (`/etc/os-release`), loaded modules, module autoload/blacklist state, relevant sysctls.
 - **`internal/detect`** (pure) maps `HostFacts` + embedded CVE dataset → verdicts. No I/O.
-- **`cmd/linux-vuln-auditor`** wires collect → detect → render.
+- **`cmd/fragcheck`** wires collect → detect → render.
 
-Module path `github.com/fieldse/linux-vuln-auditor`; binary `linux-vuln-auditor`.
+Module path `github.com/fieldse/fragcheck`; binary `fragcheck`.
 
 ## Detection model
 

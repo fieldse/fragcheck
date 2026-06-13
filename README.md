@@ -1,4 +1,4 @@
-# linux-vuln-auditor
+# fragcheck
 
 A command-line tool that checks a Linux host for exposure to a specific set of recent, serious kernel privilege-escalation vulnerabilities, and provides remediation guidance for each.
 
@@ -44,8 +44,8 @@ make run        # run the auditor (refuses cleanly off Linux / non-root)
 The collector only does real work on Linux. Cross-compile for a target architecture:
 
 ```sh
-make linux-amd64   # build bin/linux-vuln-auditor-linux-amd64
-make linux-arm64   # build bin/linux-vuln-auditor-linux-arm64
+make linux-amd64   # build bin/fragcheck-linux-amd64
+make linux-arm64   # build bin/fragcheck-linux-arm64
 make linux         # build both
 ```
 

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/fieldse/linux-vuln-auditor/internal/model"
+	"github.com/fieldse/fragcheck/internal/model"
 )
 
 // ANSI color codes; only emitted when color rendering is enabled.
