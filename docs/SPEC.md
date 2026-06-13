@@ -1,4 +1,4 @@
-# linux-vuln-auditor — Project Spec
+# fragcheck — Project Spec
 
 ## Purpose
 
@@ -9,7 +9,8 @@ to remediate. Defensive tool: it detects exposure, it does not run or ship explo
 ## Scope
 
 - **Target:** local host only. Offline at runtime (no network).
-- **Privilege:** assumes **root** (full read of sysctls, modules, kernel/pkg state).
+- **Privilege:** root recommended for the fullest read of sysctls, modules, and kernel/pkg state,
+  but not required — unreadable signals degrade to an `unknown` verdict (warning printed when non-root).
 - **Platform:** Linux with a supported distro. Non-Linux / unknown distro → refuse cleanly
   (message + non-zero exit, no table).
 - **Toolchain:** Go 1.26.
@@ -23,9 +24,9 @@ A collector/detector seam keeps detection testable without real vulnerable hosts
   running kernel (`uname`), installed kernel **package** version (`dpkg`/`rpm`), distro
   (`/etc/os-release`), loaded modules, module autoload/blacklist state, relevant sysctls.
 - **`internal/detect`** (pure) maps `HostFacts` + embedded CVE dataset → verdicts. No I/O.
-- **`cmd/linux-vuln-auditor`** wires collect → detect → render.
+- **`cmd/fragcheck`** wires collect → detect → render.
 
-Module path `github.com/fieldse/linux-vuln-auditor`; binary `linux-vuln-auditor`.
+Module path `github.com/fieldse/fragcheck`; binary `fragcheck`.
 
 ## Detection model
 

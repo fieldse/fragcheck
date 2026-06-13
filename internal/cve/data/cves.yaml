@@ -1,4 +1,4 @@
-# CVE dataset for linux-vuln-auditor.
+# CVE dataset for fragcheck.
 #
 # The five primary entries are populated from the project's source-of-truth
 # knowledgebase (page-cache-write LPE family, 2022-2026) and marked verified.

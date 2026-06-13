@@ -1,4 +1,4 @@
-module github.com/fieldse/linux-vuln-auditor
+module github.com/fieldse/fragcheck
 
 go 1.26.3
 

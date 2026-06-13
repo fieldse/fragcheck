@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/fieldse/linux-vuln-auditor/internal/cve"
-	"github.com/fieldse/linux-vuln-auditor/internal/model"
+	"github.com/fieldse/fragcheck/internal/cve"
+	"github.com/fieldse/fragcheck/internal/model"
 )
 
 // VerCmp compares two version strings and returns -1, 0, or +1. It is injected

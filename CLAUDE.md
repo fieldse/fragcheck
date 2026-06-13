@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-`linux-vuln-auditor` is a Go tool that audits a Linux host for vulnerability to a small set of recent kernel privilege-escalation exploits, and produces a clear, fast, structured table report the user can act on to remediate.
+`fragcheck` is a Go tool that audits a Linux host for vulnerability to a small set of recent kernel privilege-escalation exploits, and produces a clear, fast, structured table report the user can act on to remediate.
 
 **Defensive tool.** It detects exposure for remediation. It does **not** run, ship, or weaponize exploit code. Detection is by kernel version-range matching (corrected for distro backports) plus exploit-precondition/mitigation heuristics — never by executing real exploit payloads.
 
@@ -40,7 +40,7 @@ Note: Dirty Pipe (CVE-2022-0847) is the conceptual bridge between the two sets �
 
 ## Design (locked — full spec in `docs/SPEC.md`)
 
-- **Toolchain:** Go 1.26. Module `github.com/fieldse/linux-vuln-auditor`, binary `linux-vuln-auditor`. Offline, local host only. Root is recommended for the fullest signal but not required — the audit reads mostly world-readable state, and anything unreadable degrades to an `unknown` verdict (warning printed when non-root).
+- **Toolchain:** Go 1.26. Module `github.com/fieldse/fragcheck`, binary `fragcheck`. Offline, local host only. Root is recommended for the fullest signal but not required — the audit reads mostly world-readable state, and anything unreadable degrades to an `unknown` verdict (warning printed when non-root).
 - **Architecture seam:** `internal/collect` (impure → `HostFacts`) + `internal/detect` (pure: facts + dataset → verdicts) + `cmd/`. Keeps detection testable with fixtures, no real host needed.
 - **Version source/compare:** installed kernel from package DB (`dpkg`/`rpm`, authoritative for backports); comparison shells out to native tools for correct distro semantics; backport-corrected for Ubuntu/Debian/RHEL.
 - **Reboot gap:** verdict judged on the **running** kernel; patched-but-not-rebooted → still `vulnerable` with a "reboot pending" note.
@@ -60,8 +60,8 @@ go vet ./...                        # static checks
 go test ./...                       # full test suite
 go test ./internal/detect/...       # the core verdict logic (golden fixtures)
 go test -run TestEvaluate ./internal/detect/...   # a single test
-go run ./cmd/linux-vuln-auditor             # run (table); refuses cleanly off Linux / non-root
-go run ./cmd/linux-vuln-auditor --json      # JSON output
+go run ./cmd/fragcheck             # run (table); refuses cleanly off Linux / non-root
+go run ./cmd/fragcheck --json      # JSON output
 ```
 
 Linux end-to-end (the collector only does real work on Linux). Cross-compile and run in a
@@ -69,7 +69,7 @@ container as root:
 
 ```sh
 mkdir -p bin
-GOOS=linux GOARCH=arm64 go build -o bin/lva-linux ./cmd/linux-vuln-auditor
+GOOS=linux GOARCH=arm64 go build -o bin/lva-linux ./cmd/fragcheck
 podman run --rm -v "$PWD/bin/lva-linux:/lva:ro" ubuntu:22.04 /lva
 ```
 

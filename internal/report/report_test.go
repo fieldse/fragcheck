@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fieldse/linux-vuln-auditor/internal/model"
+	"github.com/fieldse/fragcheck/internal/model"
 )
 
 func sample() []model.Verdict {
