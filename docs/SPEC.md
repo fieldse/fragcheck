@@ -9,7 +9,8 @@ to remediate. Defensive tool: it detects exposure, it does not run or ship explo
 ## Scope
 
 - **Target:** local host only. Offline at runtime (no network).
-- **Privilege:** assumes **root** (full read of sysctls, modules, kernel/pkg state).
+- **Privilege:** root recommended for the fullest read of sysctls, modules, and kernel/pkg state,
+  but not required — unreadable signals degrade to an `unknown` verdict (warning printed when non-root).
 - **Platform:** Linux with a supported distro. Non-Linux / unknown distro → refuse cleanly
   (message + non-zero exit, no table).
 - **Toolchain:** Go 1.26.
