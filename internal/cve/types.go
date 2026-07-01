@@ -22,6 +22,16 @@ type Entry struct {
 	// running kernel below it is not affected. Empty means "unknown lower bound".
 	Introduced string `yaml:"introduced"`
 
+	// FixedMainline is the first mainline release that carries the fix. It is the
+	// ONLY sound upper bound for a running kernel whose stable series has no
+	// Branch entry: at or above it, the kernel is patched. It must be the mainline
+	// merge point, NOT the highest per-series backport — a later stable series can
+	// fork before the fix and so sit numerically above a backport yet remain
+	// vulnerable. Empty means "no proven upper bound": an in-range kernel in an
+	// untracked series then degrades to likely-vulnerable rather than being
+	// wrongly cleared.
+	FixedMainline string `yaml:"fixed_mainline"`
+
 	// Branches lists the first upstream version that fixes the flaw in each
 	// stable series (e.g. {Series: "5.15", Fixed: "5.15.208"}). Used for the
 	// upstream-version fallback when no per-distro-release fix is recorded.

@@ -7,7 +7,7 @@ func TestLoadEmbedded(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load() embedded dataset: %v", err)
 	}
-	if got, want := len(ds.CVEs), 8; got != want {
+	if got, want := len(ds.CVEs), 10; got != want {
 		t.Errorf("CVE count = %d, want %d", got, want)
 	}
 
