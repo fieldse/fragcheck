@@ -9,6 +9,8 @@ A command-line tool that checks a Linux host for exposure to a specific set of r
 | Dirty Frag (ESP) | CVE-2026-43284 | IPsec/ESP packet decryption writes into the page cache, leading to root — actively exploited |
 | Dirty Frag (RxRPC) | CVE-2026-43500 | Same flaw in the RxRPC/AFS path, reachable through ordinary syscalls |
 | Fragnesia | CVE-2026-46300 | Follow-on to Dirty Frag via ESP-in-TCP, again writing into the page cache |
+| DirtyClone | CVE-2026-43503 | Kernel packet-cloning helpers drop the shared-frag marker, so IPsec/ESP decryption writes into the page cache, leading to root |
+| pedit COW | CVE-2026-46331 | Out-of-bounds write in the traffic-control pedit action corrupts the page cache, leading to root |
 
 For each one, it weighs two things: whether the running kernel is an affected version, and whether the conditions the exploit needs are actually present. It reads the kernel version from the system's package manager and accounts for distribution backports, so patched versions on Ubuntu, Debian, and RHEL aren't flagged by mistake.
 

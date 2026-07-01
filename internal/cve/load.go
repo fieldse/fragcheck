@@ -66,6 +66,9 @@ func (ds *Dataset) Validate() error {
 		if e.Introduced != "" && !versionPattern.MatchString(e.Introduced) {
 			return fmt.Errorf("%s: introduced %q is not a version", where, e.Introduced)
 		}
+		if e.FixedMainline != "" && !versionPattern.MatchString(e.FixedMainline) {
+			return fmt.Errorf("%s: fixed_mainline %q is not a version", where, e.FixedMainline)
+		}
 		if !hasVersionSignal(e) {
 			return fmt.Errorf("%s: no version signal (need a branch, distro fix, or introduced bound)", where)
 		}

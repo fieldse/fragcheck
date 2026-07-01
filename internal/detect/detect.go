@@ -146,24 +146,23 @@ func evalVersion(e *cve.Entry, facts model.HostFacts, cmp VerCmp) (versionState,
 		}
 		return verAffected, false, []string{fmt.Sprintf("running kernel %s < branch fix %s (upstream-only, backports not checked)", up, fixed)}
 	}
-	// No series match: a kernel newer than the highest (mainline) fix carries
-	// the fix in all later releases, so it is not affected.
-	if mx := maxFixed(e.Branches, cmp); mx != "" && cmp(up, mx) >= 0 {
-		return verPatched, true, []string{fmt.Sprintf("running kernel %s is newer than the latest fix %s", up, mx)}
-	}
-	return verUnknown, false, []string{fmt.Sprintf("no per-release fix or matching branch for running kernel %s", up)}
-}
 
-// maxFixed returns the highest fixed version across all branches (the mainline
-// fix point), or "" when there are no branches.
-func maxFixed(branches []cve.Branch, cmp VerCmp) string {
-	best := ""
-	for _, b := range branches {
-		if best == "" || cmp(b.Fixed, best) > 0 {
-			best = b.Fixed
-		}
+	// No matching series. The running kernel is already >= introduced (checked
+	// above), so it is in the affected range. The ONLY thing that clears it is
+	// carrying the mainline fix — proven solely by an explicit FixedMainline.
+	// A running kernel being newer than the highest per-series *backport* proves
+	// nothing: a later stable series can fork before the fix lands and so sit
+	// numerically above every backport while still being vulnerable. Treating
+	// "newer than the newest backport" as patched is a false-negative, which for
+	// a security tool is the worst failure — so we never do it.
+	if e.FixedMainline != "" && cmp(up, e.FixedMainline) >= 0 {
+		return verPatched, true, []string{fmt.Sprintf("running kernel %s >= mainline fix %s", up, e.FixedMainline)}
 	}
-	return best
+	ev := fmt.Sprintf("running kernel %s is in the affected range and its series has no recorded fix", up)
+	if e.FixedMainline != "" {
+		ev = fmt.Sprintf("running kernel %s < mainline fix %s and its series has no recorded backport", up, e.FixedMainline)
+	}
+	return verAffected, false, []string{ev + " — cannot confirm patched"}
 }
 
 // matchBranch returns the fixed version for the stable series of the running

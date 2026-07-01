@@ -25,6 +25,8 @@ These are the focus. They are newer than the assistant's knowledge cutoff; treat
 | Dirty Frag (ESP)     | CVE-2026-43284                       | In-place ESP/IPsec decrypt over unowned skb frags → page-cache write → root (actively exploited) |
 | Dirty Frag (RxRPC)   | CVE-2026-43500                       | Same flaw in RxRPC/AFS path → OOB page-cache write via unprivileged syscalls → root         |
 | Fragnesia            | CVE-2026-46300                       | ESP-in-TCP lost shared-frag flag (born from Dirty Frag patch) → page-cache write → root     |
+| DirtyClone           | CVE-2026-43503                       | skb-clone helpers (`__pskb_copy_fclone`/`skb_shift`) drop shared-frag flag → ESP decrypt → page-cache write → root |
+| pedit COW            | CVE-2026-46331                       | `net/sched` `act_pedit` OOB write (runtime offset escapes COW bounds check) → page-cache write → root |
 
 ### Secondary — well-documented legacy privesc CVEs
 
@@ -87,5 +89,19 @@ Exit codes: `0` audit completed (regardless of findings), `1` internal error (e.
   DSA versions are known.
 - The **3 legacy CVEs remain `verified: false`** (provisional single-branch data; not in the
   knowledgebase).
+- **DirtyClone (`CVE-2026-43503`) and pedit COW (`CVE-2026-46331`) are `verified: false`** — added
+  from `docs/research/detection-{dirtyclone,peditcow}-*.md` (kernel.org-authoritative branch data,
+  live distro trackers). Open items before flipping to `true`:
+  - **DirtyClone RHEL**: RHEL 9/10 are "Affected" but no errata/NVR is indexed yet, so `distro_fixed.rhel`
+    is empty and RHEL falls to the upstream-branch fallback (`likely-vulnerable`). Correction vs. the
+    threat-report doc: `rxrpc` is **not** a precondition for this CVE (esp4/esp6 only). SUSE data was
+    single-sourced — re-verify. `introduced: "3.9"` is kernel.org's value but a loose lower bound (the
+    flaw only bites once the shared-frag mechanism exists — pre-mechanism kernels are covered by the
+    43284/43500 entries).
+  - **pedit COW**: fix is mainline-fresh (v7.1-rc7) — **no 6.1.x/6.6.x branch backport exists yet**, so
+    hosts on those LTS series resolve to `unknown` (no per-release fix or matching branch), not
+    `likely-vulnerable`. RHEL 8/9/10 NVRs not indexed; Debian 11's tracker entry is a suspected
+    false-positive (5.10 predates the v5.18 introduction). `introduced: "5.18"` cleanly excludes
+    RHEL 6/7 and Ubuntu ≤16.04.
 - Verified end-to-end on a real Debian 13 host (kernel 6.12.63-1): Copy Fail confirmed
   `vulnerable`, Fragnesia `not-affected` (espintcp not built), legacy/Dirty Pipe `not-affected`.
