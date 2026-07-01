@@ -24,6 +24,7 @@ cves:
       read-only / SUID files, leading to root. No CONFIG, module, or userns
       precondition — every shell user on a vulnerable kernel is an attacker.
     introduced: "5.8"
+    fixed_mainline: "5.17"   # mainline fix; stable backports 5.16.11/5.15.25/5.10.102
     branches:
       - {series: "5.16", fixed: "5.16.11"}
       - {series: "5.15", fixed: "5.15.25"}
@@ -54,6 +55,10 @@ cves:
       page-cache write, leading to root. No unprivileged user namespaces needed,
       so disabling userns does not mitigate.
     introduced: "4.14"
+    fixed_mainline: ""   # TODO backfill — no mainline release captured in the KB;
+                          # until set, kernels in an untracked series (no branch
+                          # match) read likely-vulnerable rather than not-affected
+
     branches:
       - {series: "5.10", fixed: "5.10.254"}
       - {series: "5.15", fixed: "5.15.204"}
@@ -93,6 +98,7 @@ cves:
       page cache, leading to root. Actively exploited in the wild. Requires
       CAP_NET_ADMIN obtained via an unprivileged user namespace.
     introduced: "4.11"
+    fixed_mainline: ""   # TODO backfill mainline release (KB has commit f4c50a4034e6 only)
     branches:
       - {series: "5.10", fixed: "5.10.255"}
       - {series: "5.15", fixed: "5.15.206"}
@@ -135,6 +141,7 @@ cves:
       no CAP_NET_ADMIN). Absent from RHEL 8 / Alma 8. Works where the ESP path is
       blocked.
     introduced: "5.3"
+    fixed_mainline: ""   # TODO backfill mainline release (KB has commit aa54b1d27fe0 only)
     branches:
       - {series: "5.10", fixed: "5.10.255"}
       - {series: "5.15", fixed: "5.15.206"}
@@ -175,6 +182,7 @@ cves:
       Requires the Dirty Frag fix to be present (or never patched). Needs
       unprivileged user namespaces.
     introduced: "5.6"
+    fixed_mainline: ""   # TODO backfill mainline release (born from the Dirty Frag patch)
     branches:
       - {series: "5.10", fixed: "5.10.258"}
       - {series: "5.15", fixed: "5.15.208"}
@@ -228,6 +236,7 @@ cves:
     # the SKBFL_SHARED_FRAG mechanism exists (born from the Dirty Frag fix). Kernels
     # predating that are covered by the CVE-2026-43284/-43500 entries, not this one.
     introduced: "3.9"
+    fixed_mainline: "7.1"   # mainline fix v7.1-rc5, commit 48f6a5356a33
     branches:
       - {series: "5.10", fixed: "5.10.257"}   # kernel.org fix commit fbeab9555564
       - {series: "5.15", fixed: "5.15.208"}   # kernel.org fix commit 179f1852bded
@@ -278,6 +287,7 @@ cves:
       a SUID binary — root. Same page-cache-COW outcome as Dirty Pipe, but via the
       tc (traffic-control) subsystem, not IPsec/fragment paths.
     introduced: "5.18"   # culprit commit 899ee91156e5; fixed mainline v7.1-rc7
+    fixed_mainline: "7.1"   # mainline fix v7.1-rc7
     branches:
       # 6.1.x and 6.6.x have NO fix in the CNA record yet — hosts on those LTS
       # series correctly fall to the upstream-branch fallback (likely-vulnerable).
@@ -314,6 +324,7 @@ cves:
     description: >-
       netfilter nf_tables use-after-free allowing local privilege escalation.
     introduced: "5.14"
+    fixed_mainline: "6.8"
     branches:
       - {series: "6.8", fixed: "6.8"}
     distro_fixed:
@@ -338,6 +349,7 @@ cves:
       OverlayFS improper ownership handling on copy-up allowing local privilege
       escalation.
     introduced: "5.11"
+    fixed_mainline: "6.2"
     branches:
       - {series: "6.2", fixed: "6.2"}
     distro_fixed:
@@ -361,6 +373,7 @@ cves:
       netfilter nf_tables use-after-free in chain deletion allowing local
       privilege escalation.
     introduced: ""
+    fixed_mainline: "6.4"
     branches:
       - {series: "6.4", fixed: "6.4"}
     distro_fixed:
