@@ -207,6 +207,102 @@ cves:
       breaks rootless containers. Ubuntu 23.10+
       kernel.apparmor_restrict_unprivileged_userns=1 blocks the public PoC.
 
+  - id: CVE-2026-43503
+    nickname: DirtyClone
+    advisory: USN-8373-1   # bundled Ubuntu fix; no DirtyClone-specific RHSB/DSA number found standalone
+    cvss: 8.8   # kernel.org CNA; Red Hat ADP scores it 7.0
+    kev: false  # confirmed NOT in CISA KEV (live feed, catalogVersion 2026.06.29)
+    # verified: false — branch data is kernel.org-authoritative, but distro_fixed.rhel
+    # is unknown (RHEL 9/10 "Affected", no errata indexed yet) and SUSE data was
+    # single-sourced. Re-validate before flipping to true. See
+    # docs/research/detection-dirtyclone-cve-2026-43503.md
+    verified: false
+    description: >-
+      Frag-transfer helpers (__pskb_copy_fclone, skb_shift, and others) fail to
+      propagate the SKBFL_SHARED_FRAG marker when cloning an skb. ESP input
+      (esp4/esp6) then decrypts in place into page-cache pages it does not own —
+      a routed nft 'dup to <local>' / xt_TEE clone reaches esp_input() with the
+      marker stripped, giving an unprivileged user a page-cache write to root.
+      Fourth entry in the 2026 shared-frag LPE cluster.
+    # kernel.org traces "introduced" to 3.9, but the flaw is only exploitable once
+    # the SKBFL_SHARED_FRAG mechanism exists (born from the Dirty Frag fix). Kernels
+    # predating that are covered by the CVE-2026-43284/-43500 entries, not this one.
+    introduced: "3.9"
+    branches:
+      - {series: "5.10", fixed: "5.10.257"}   # kernel.org fix commit fbeab9555564
+      - {series: "5.15", fixed: "5.15.208"}   # kernel.org fix commit 179f1852bded
+      - {series: "6.1",  fixed: "6.1.174"}    # kernel.org fix commit 12401fcfb01f
+      - {series: "6.6",  fixed: "6.6.141"}    # kernel.org fix commit 989214c66884
+      - {series: "6.12", fixed: "6.12.91"}    # kernel.org fix commit fc6eb39c55e9
+      - {series: "6.18", fixed: "6.18.33"}    # kernel.org fix commit ff375cc75f91
+      - {series: "7.0",  fixed: "7.0.10"}     # kernel.org fix commit 9bc9d6d69672
+      # mainline: v7.1 (v7.1-rc5) fix commit 48f6a5356a33
+    distro_fixed:
+      ubuntu:                # ubuntu.com/security/CVE-2026-43503 + USN-8373-1
+        "22.04": "5.15.0-181.191"
+        "24.04": "6.8.0-124.124"
+        "25.10": "6.17.0-35.35"
+        "26.04": "7.0.0-22.22"
+      debian:                # security-tracker.debian.org/tracker/CVE-2026-43503
+        "11": "5.10.257-1"    # DLA-4606-1
+        "12": "6.1.174-1"     # DSA-6306-1
+        "13": "6.12.94-1"     # DSA-6295-1
+      rhel: {}                 # UNKNOWN — RHEL 9/10 "Affected", no errata indexed; RHEL 6/7/8 not affected
+    unaffected_distros: []
+    preconditions:
+      # esp4/esp6 only — unlike CVE-2026-43500, rxrpc is NOT part of this variant's
+      # demonstrated path. Do not inherit the sibling entry's rxrpc precondition.
+      modules: [esp4, esp6]
+      configs: [CONFIG_XFRM, CONFIG_INET_ESP, CONFIG_INET6_ESP]
+      needs_unpriv_userns: true
+    remediation: >-
+      Patch (reboot) to a kernel carrying commit 48f6a5356a33 or its stable
+      backport. Where IPsec ESP is unused, blacklist esp4/esp6
+      (install ... /bin/false) — breaks IPsec VPN. Disabling unprivileged userns
+      (user.max_user_namespaces=0) closes the default CAP_NET_ADMIN path but not
+      exploitation by a process that already holds CAP_NET_ADMIN.
+
+  - id: CVE-2026-46331
+    nickname: pedit COW
+    advisory: RHSB-2026-008
+    cvss: 7.8   # kernel.org CNA; Red Hat ADP scores it 6.7 (PR:H)
+    kev: false  # not in CISA KEV as of 2026-07-01; CISA ADP ssvc Exploitation: poc
+    # verified: false — fix is ~2 weeks old: no 6.1.x/6.6.x branch backport yet, RHEL
+    # NVRs not indexed, and Debian 11's tracker entry is a suspected false-positive
+    # (5.10 predates v5.18). See docs/research/detection-peditcow-cve-2026-46331.md
+    verified: false
+    description: >-
+      Out-of-bounds write in net/sched act_pedit (tcf_pedit_act): a pedit key
+      whose target offset is resolved at runtime escapes the copy-on-write bounds
+      check, writing past the private copy into the shared page-cache page backing
+      a SUID binary — root. Same page-cache-COW outcome as Dirty Pipe, but via the
+      tc (traffic-control) subsystem, not IPsec/fragment paths.
+    introduced: "5.18"   # culprit commit 899ee91156e5; fixed mainline v7.1-rc7
+    branches:
+      # 6.1.x and 6.6.x have NO fix in the CNA record yet — hosts on those LTS
+      # series correctly fall to the upstream-branch fallback (likely-vulnerable).
+      - {series: "6.12", fixed: "6.12.94"}   # kernel.org CNA; matches Debian trixie 6.12.94-1
+      - {series: "6.18", fixed: "6.18.36"}   # kernel.org CNA (no distro corroboration)
+      - {series: "7.0",  fixed: "7.0.13"}    # kernel.org CNA; matches Debian sid 7.0.13-1
+    distro_fixed:
+      ubuntu: {}             # all of 18.04–26.04 listed vulnerable, no fixed package as of 2026-06-30
+      debian:                # security-tracker.debian.org/tracker/CVE-2026-46331
+        "13": "6.12.94-1"     # DSA-6355-1; 11/12 not fixed (11 is a suspected tracker false-positive)
+      rhel: {}                 # RHEL 8/9/10 affected (RHSA errata issued) but fixed NVRs not indexed; RHEL 6/7 not affected
+    unaffected_distros: []     # RHEL 6/7 and Ubuntu ≤16.04 fall out via the introduced: 5.18 lower bound
+    preconditions:
+      # act_pedit is the hard gate. The PoC's cls_basic/em_meta classifier auto-falls
+      # back to matchall (near-universal), so do NOT gate on those — would false-mitigate RHEL.
+      modules: [act_pedit]
+      configs: [CONFIG_NET_SCHED, CONFIG_NET_CLS_ACT, CONFIG_NET_ACT_PEDIT]
+      needs_unpriv_userns: true
+    remediation: >-
+      Patch (reboot). Where tc pedit rules are unused, blacklist act_pedit
+      (install act_pedit /bin/true) — breaks traffic shaping/header rewriting.
+      Disable unprivileged userns (user.max_user_namespaces=0 /
+      kernel.unprivileged_userns_clone=0). On Ubuntu 24.04+ the AppArmor userns
+      sysctls block the public PoC path but the kernel itself stays vulnerable.
+
   # ---- Secondary: legacy privilege escalation (provisional) ----
 
   - id: CVE-2024-1086
