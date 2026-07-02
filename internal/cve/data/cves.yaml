@@ -31,10 +31,10 @@ cves:
       - {series: "5.10", fixed: "5.10.102"}
     distro_fixed:
       debian:
-        "11": "5.10.103-1"   # bullseye (DSA-5092-1); buster/stretch not affected
+        "11": "5.10.92-2"    # bullseye (DSA-5092-1); buster/stretch not affected
       ubuntu: {}             # per kernel stack (HWE 5.13<5.13.0-35.40, OEM 5.14<5.14.0-1027.30); GA 5.4/4.15 not affected
       rhel:
-        "9": "5.14.0-0"      # RHEL 9 shipped patched at GA; RHEL 8 patched via RHSA-2022:0825; RHEL 7 not affected
+        "8": "4.18.0-348.20.1.el8_5"   # RHSA-2022:0825; RHEL 9 shipped patched at GA (not affected); RHEL 7 not affected
     preconditions:
       modules: []
       configs: []
@@ -48,24 +48,22 @@ cves:
     nickname: Copy Fail
     advisory: GHSA-2274-3hgr-wxv6
     cvss: 7.8   # CVSS HIGH per RHSB-2026-002; exact base score not recorded
-    kev: false
+    kev: true   # CISA KEV, dateAdded 2026-05-01
     verified: true
     description: >-
       algif_aead AF_ALG crypto logic bug gives a deterministic 4-byte
       page-cache write, leading to root. No unprivileged user namespaces needed,
       so disabling userns does not mitigate.
     introduced: "4.14"
-    fixed_mainline: ""   # TODO backfill — no mainline release captured in the KB;
-                          # until set, kernels in an untracked series (no branch
-                          # match) read likely-vulnerable rather than not-affected
-
+    fixed_mainline: "7.0"   # mainline fix landed in 7.0 (kernel.org + CNA)
     branches:
       - {series: "5.10", fixed: "5.10.254"}
       - {series: "5.15", fixed: "5.15.204"}
-      - {series: "6.1",  fixed: "6.1.174"}
+      - {series: "6.1",  fixed: "6.1.170"}
       - {series: "6.6",  fixed: "6.6.137"}
       - {series: "6.12", fixed: "6.12.85"}
       - {series: "6.18", fixed: "6.18.22"}
+      - {series: "6.19", fixed: "6.19.12"}   # pins the reported Fedora 6.19.10 box as affected
     distro_fixed:
       ubuntu:
         "22.04": "5.15.0-179.189"
@@ -73,7 +71,7 @@ cves:
       debian:
         "11": "5.10.257-1"
         "12": "6.1.174-1"
-        "13": "6.12.90-2"
+        "13": "6.12.94-1"
       rhel:
         "8": "4.18.0-553.123.1.el8_10"
         "9": "5.14.0-611.54.1.el9_7"
@@ -91,14 +89,14 @@ cves:
     nickname: Dirty Frag (ESP)
     advisory: RHSB-2026-003
     cvss: 8.8   # kernel.org; CISA-ADP scores it 7.8
-    kev: true
+    kev: false  # not in CISA KEV (SSVC=poc); "actively exploited" per KB/threat-report is a separate fact
     verified: true
     description: >-
       In-place ESP/IPsec decryption over unowned skb fragments writes into the
       page cache, leading to root. Actively exploited in the wild. Requires
       CAP_NET_ADMIN obtained via an unprivileged user namespace.
     introduced: "4.11"
-    fixed_mainline: ""   # TODO backfill mainline release (KB has commit f4c50a4034e6 only)
+    fixed_mainline: "7.1"   # mainline fix landed in 7.1 (kernel.org + CNA)
     branches:
       - {series: "5.10", fixed: "5.10.255"}
       - {series: "5.15", fixed: "5.15.206"}
@@ -115,10 +113,10 @@ cves:
         "11": "5.10.251-4"
         "12": "6.1.170-3"
         "13": "6.12.86-1"
-      rhel:
-        "8":  "4.18.0-553.123.2.el8_10"
-        "9":  "5.14.0-611.54.3.el9_7"
-        "10": "6.12.0-124.55.3.el10_1"
+      rhel:                 # Red Hat RHSA NVRs (not AlmaLinux rebuilds)
+        "8":  "4.18.0-553.124.1.el8_10"   # RHSA-2026:16195
+        "9":  "5.14.0-611.55.1.el9_7"     # RHSA-2026:16206
+        "10": "6.12.0-124.56.1.el10_1"    # RHSA-2026:16062
     preconditions:
       modules: [esp4, esp6]
       configs: [CONFIG_INET_ESP, CONFIG_XFRM]
@@ -133,7 +131,7 @@ cves:
     nickname: Dirty Frag (RxRPC)
     advisory: RHSB-2026-003
     cvss: 7.8
-    kev: true
+    kev: false  # not in CISA KEV (same as the ESP variant)
     verified: true
     description: >-
       The Dirty Frag in-place-decrypt flaw in the RxRPC/AFS path: an OOB
@@ -141,13 +139,10 @@ cves:
       no CAP_NET_ADMIN). Absent from RHEL 8 / Alma 8. Works where the ESP path is
       blocked.
     introduced: "5.3"
-    fixed_mainline: ""   # TODO backfill mainline release (KB has commit aa54b1d27fe0 only)
-    branches:
-      - {series: "5.10", fixed: "5.10.255"}
-      - {series: "5.15", fixed: "5.15.206"}
-      - {series: "6.1",  fixed: "6.1.172"}
-      - {series: "6.6",  fixed: "6.6.138"}
-      - {series: "6.12", fixed: "6.12.87"}
+    fixed_mainline: "7.1"   # mainline fix landed in 7.1 (kernel.org + CNA)
+    branches:               # only these series carry a fix (kernel.org/CNA)
+      - {series: "6.6",  fixed: "6.6.140"}
+      - {series: "6.12", fixed: "6.12.88"}
       - {series: "6.18", fixed: "6.18.29"}
       - {series: "7.0",  fixed: "7.0.6"}
     distro_fixed:
@@ -157,10 +152,8 @@ cves:
       debian:               # debian security-tracker (CVE-2026-43500)
         "11": "5.10.257-1"
         "12": "6.1.174-1"
-        "13": "6.12.90-2"
-      rhel:
-        "9":  "5.14.0-611.54.3.el9_7"
-        "10": "6.12.0-124.55.3.el10_1"
+        "13": "6.12.94-1"
+      rhel: {}              # Red Hat: RHEL 6/7/8/9/10 Not affected (rxrpc binary RPM never shipped)
     preconditions:
       modules: [rxrpc]
       configs: [CONFIG_AF_RXRPC]
@@ -181,14 +174,15 @@ cves:
       created by the Dirty Frag patch — allowing a page-cache write to root.
       Requires the Dirty Frag fix to be present (or never patched). Needs
       unprivileged user namespaces.
-    introduced: "5.6"
-    fixed_mainline: ""   # TODO backfill mainline release (born from the Dirty Frag patch)
+    introduced: "3.9"   # CNA JSON lower bound
+    fixed_mainline: "7.1"   # mainline fix landed in 7.1 (kernel.org + CNA)
     branches:
-      - {series: "5.10", fixed: "5.10.258"}
+      - {series: "5.10", fixed: "5.10.257"}
       - {series: "5.15", fixed: "5.15.208"}
       - {series: "6.1",  fixed: "6.1.174"}
       - {series: "6.6",  fixed: "6.6.141"}
       - {series: "6.12", fixed: "6.12.91"}
+      - {series: "6.18", fixed: "6.18.33"}
       - {series: "7.0",  fixed: "7.0.10"}
     distro_fixed:
       ubuntu:
@@ -199,11 +193,11 @@ cves:
       debian:
         "11": "6.1.174-1~deb11u1"
         "12": "6.1.174-1"
-        "13": "6.12.90-2"
-      rhel:
-        "8":  "4.18.0-553.124.3.el8_10"
-        "9":  "5.14.0-611.54.5.el9_7"
-        "10": "6.12.0-124.56.3.el10_1"
+        "13": "6.12.94-1"
+      rhel:                 # Red Hat RHSA NVRs
+        "8":  "4.18.0-553.125.1.el8_10"   # RHSA-2026:19666
+        "9":  "5.14.0-687.10.1.el9_8"     # RHSA-2026:19568
+        "10": "6.12.0-211.16.1.el10_2"    # RHSA-2026:19569
     unaffected_distros: [amazon]   # espintcp absent from Amazon Linux kernels
     preconditions:
       modules: [esp4, esp6]
@@ -244,7 +238,7 @@ cves:
       - {series: "6.6",  fixed: "6.6.141"}    # kernel.org fix commit 989214c66884
       - {series: "6.12", fixed: "6.12.91"}    # kernel.org fix commit fc6eb39c55e9
       - {series: "6.18", fixed: "6.18.33"}    # kernel.org fix commit ff375cc75f91
-      - {series: "7.0",  fixed: "7.0.10"}     # kernel.org fix commit 9bc9d6d69672
+      - {series: "7.0",  fixed: "7.0.10"}     # kernel.org fix commit 9bc9d6d6967a
       # mainline: v7.1 (v7.1-rc5) fix commit 48f6a5356a33
     distro_fixed:
       ubuntu:                # ubuntu.com/security/CVE-2026-43503 + USN-8373-1
@@ -286,11 +280,23 @@ cves:
       check, writing past the private copy into the shared page-cache page backing
       a SUID binary — root. Same page-cache-COW outcome as Dirty Pipe, but via the
       tc (traffic-control) subsystem, not IPsec/fragment paths.
-    introduced: "5.18"   # culprit commit 899ee91156e5; fixed mainline v7.1-rc7
+    # culprit commit 8b796475fd78; fix commit 899ee91156e5 (mainline v7.1-rc7).
+    # introduced is the LOWEST affected line so the global lower-bound check never
+    # clears a vulnerable LTS kernel; per-line affected_from below carves out the
+    # pre-backport kernels within each series.
+    introduced: "4.19"
     fixed_mainline: "7.1"   # mainline fix v7.1-rc7
     branches:
-      # 6.1.x and 6.6.x have NO fix in the CNA record yet — hosts on those LTS
-      # series correctly fall to the upstream-branch fallback (likely-vulnerable).
+      # LTS lines the flaw was independently backported into, with NO in-line fix
+      # yet (affected_from = the backport point). A host at/above these is
+      # vulnerable; below is not-affected for that line.
+      - {series: "4.19", affected_from: "4.19.244"}
+      - {series: "5.4",  affected_from: "5.4.195"}
+      - {series: "5.10", affected_from: "5.10.117"}
+      - {series: "5.15", affected_from: "5.15.41"}
+      - {series: "5.17", affected_from: "5.17.9"}
+      # 6.1.x and 6.6.x have NO fix and no recorded backport point yet — hosts on
+      # those LTS series fall to the upstream-branch fallback (likely-vulnerable).
       - {series: "6.12", fixed: "6.12.94"}   # kernel.org CNA; matches Debian trixie 6.12.94-1
       - {series: "6.18", fixed: "6.18.36"}   # kernel.org CNA (no distro corroboration)
       - {series: "7.0",  fixed: "7.0.13"}    # kernel.org CNA; matches Debian sid 7.0.13-1
@@ -323,7 +329,7 @@ cves:
     verified: false
     description: >-
       netfilter nf_tables use-after-free allowing local privilege escalation.
-    introduced: "5.14"
+    introduced: "3.15"   # CNA JSON: affected 3.15, lessThan 6.8
     fixed_mainline: "6.8"
     branches:
       - {series: "6.8", fixed: "6.8"}
@@ -343,7 +349,7 @@ cves:
     nickname: OverlayFS privesc
     advisory: ""
     cvss: 7.8
-    kev: false
+    kev: true   # CISA KEV, dateAdded 2025-06-17
     verified: false
     description: >-
       OverlayFS improper ownership handling on copy-up allowing local privilege
@@ -370,8 +376,8 @@ cves:
     kev: false
     verified: false
     description: >-
-      netfilter nf_tables use-after-free in chain deletion allowing local
-      privilege escalation.
+      netfilter nf_tables use-after-free via anonymous-set mishandling during
+      nf_tables batch processing, allowing local privilege escalation.
     introduced: ""
     fixed_mainline: "6.4"
     branches:

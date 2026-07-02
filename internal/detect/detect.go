@@ -139,12 +139,22 @@ func evalVersion(e *cve.Entry, facts model.HostFacts, cmp VerCmp) (versionState,
 		// through to the upstream branch signal below.
 	}
 
-	// Fallback: match the running kernel's stable series to a branch fix.
-	if fixed, ok := matchBranch(up, e.Branches); ok {
-		if cmp(up, fixed) >= 0 {
-			return verPatched, false, []string{fmt.Sprintf("running kernel %s >= branch fix %s (upstream-only, backports not checked)", up, fixed)}
+	// Fallback: match the running kernel's stable series to a branch entry.
+	if b, ok := matchBranch(up, e.Branches); ok {
+		// Per-line lower bound: the flaw may have been backported into this
+		// series only at a specific point. Below it, this line is not affected
+		// even though the running kernel is >= the entry's global introduced.
+		if b.AffectedFrom != "" && cmp(up, b.AffectedFrom) < 0 {
+			return verPatched, false, []string{fmt.Sprintf("running kernel %s < series lower bound %s (flaw not backported into this line below that)", up, b.AffectedFrom)}
 		}
-		return verAffected, false, []string{fmt.Sprintf("running kernel %s < branch fix %s (upstream-only, backports not checked)", up, fixed)}
+		if b.Fixed != "" {
+			if cmp(up, b.Fixed) >= 0 {
+				return verPatched, false, []string{fmt.Sprintf("running kernel %s >= branch fix %s (upstream-only, backports not checked)", up, b.Fixed)}
+			}
+			return verAffected, false, []string{fmt.Sprintf("running kernel %s < branch fix %s (upstream-only, backports not checked)", up, b.Fixed)}
+		}
+		// No fix recorded for this line: affected from the lower bound upward.
+		return verAffected, false, []string{fmt.Sprintf("running kernel %s is in an affected series with no upstream fix recorded", up)}
 	}
 
 	// No matching series. The running kernel is already >= introduced (checked
@@ -165,19 +175,19 @@ func evalVersion(e *cve.Entry, facts model.HostFacts, cmp VerCmp) (versionState,
 	return verAffected, false, []string{ev + " — cannot confirm patched"}
 }
 
-// matchBranch returns the fixed version for the stable series of the running
+// matchBranch returns the branch entry for the stable series of the running
 // kernel (e.g. running 6.12.x matches branch series "6.12").
-func matchBranch(running string, branches []cve.Branch) (string, bool) {
+func matchBranch(running string, branches []cve.Branch) (cve.Branch, bool) {
 	s := seriesRE.FindString(running)
 	if s == "" {
-		return "", false
+		return cve.Branch{}, false
 	}
 	for _, b := range branches {
 		if b.Series == s {
-			return b.Fixed, true
+			return b, true
 		}
 	}
-	return "", false
+	return cve.Branch{}, false
 }
 
 // evalConfigs reports whether the kernel features the exploit needs are built.

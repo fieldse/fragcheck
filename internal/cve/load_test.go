@@ -34,8 +34,19 @@ func TestLoadEmbedded(t *testing.T) {
 	}
 
 	// Spot-check a known per-release distro fix is wired through.
-	if got := byID["CVE-2026-46300"].DistroFixed.For("debian", "13"); got != "6.12.90-2" {
-		t.Errorf("Fragnesia debian 13 fixed = %q, want 6.12.90-2", got)
+	if got := byID["CVE-2026-46300"].DistroFixed.For("debian", "13"); got != "6.12.94-1" {
+		t.Errorf("Fragnesia debian 13 fixed = %q, want 6.12.94-1", got)
+	}
+
+	// pedit COW carries per-line lower bounds (affected_from, no in-line fix).
+	var gotAffectedFrom bool
+	for _, b := range byID["CVE-2026-46331"].Branches {
+		if b.Series == "5.10" && b.Fixed == "" && b.AffectedFrom == "5.10.117" {
+			gotAffectedFrom = true
+		}
+	}
+	if !gotAffectedFrom {
+		t.Errorf("pedit COW should carry a 5.10 branch with affected_from 5.10.117 and no fix")
 	}
 }
 
@@ -75,6 +86,20 @@ cves:
     cvss: 7.0
     remediation: patch
     branches: [{series: "5.15", fixed: "vfive"}]`,
+		"branch with neither fixed nor affected_from": `
+cves:
+  - id: CVE-2022-0847
+    nickname: x
+    cvss: 7.0
+    remediation: patch
+    branches: [{series: "5.15"}]`,
+		"bad branch affected_from": `
+cves:
+  - id: CVE-2022-0847
+    nickname: x
+    cvss: 7.0
+    remediation: patch
+    branches: [{series: "5.15", affected_from: "vfive"}]`,
 	}
 	for name, raw := range cases {
 		t.Run(name, func(t *testing.T) {

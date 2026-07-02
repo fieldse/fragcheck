@@ -50,10 +50,19 @@ type Entry struct {
 	Remediation   string        `yaml:"remediation"`
 }
 
-// Branch is the first fixed upstream version within a stable series.
+// Branch is the fix (and, optionally, the lower bound) for a stable series.
 type Branch struct {
 	Series string `yaml:"series"` // major.minor, e.g. "6.12"
-	Fixed  string `yaml:"fixed"`  // first fixed patch release, e.g. "6.12.91"
+	// Fixed is the first fixed patch release in this series, e.g. "6.12.91".
+	// Empty means "no fix in this line yet" — the series is affected from
+	// AffectedFrom (or the entry's Introduced) upward with no upstream fix.
+	Fixed string `yaml:"fixed"`
+	// AffectedFrom is this line's per-series lower bound: the flaw was
+	// independently backported into the series at this point, so a running
+	// kernel below it is not affected even though it shares the series. Empty
+	// falls back to the entry's global Introduced. A branch must carry at least
+	// one of Fixed / AffectedFrom.
+	AffectedFrom string `yaml:"affected_from"`
 }
 
 // DistroFixed holds patched package versions keyed by distro release id
