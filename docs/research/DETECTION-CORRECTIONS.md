@@ -1,7 +1,7 @@
 # Dataset corrections from adversarial verification (2026-07-02)
 
 > **STATUS: APPLIED (2026-07-02).** All A/B/C corrections below are landed in
-> `internal/cve/data/cves.yaml` per `DATASET-FIX-PLAN.md`. Section A used the new per-line
+> `internal/cvedata/cves.yaml` per `DATASET-FIX-PLAN.md`. Section A used the new per-line
 > `affected_from` schema for the pedit-COW LTS false-negative. Section D (dataset already
 > correct) was left unchanged. Section E coverage gaps remain open follow-ups.
 

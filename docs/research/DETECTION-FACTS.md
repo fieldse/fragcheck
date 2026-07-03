@@ -1,6 +1,6 @@
 # fragcheck detection facts — research + adversarial verification
 
-Generated 2026-07-02. Every value in `internal/cve/data/cves.yaml` was researched against
+Generated 2026-07-02. Every value in `internal/cvedata/cves.yaml` was researched against
 primary sources (kernel.org CVE feed, MITRE CNA JSON, Debian/Ubuntu/Red Hat/SUSE trackers,
 CISA KEV, NVD) by one agent per CVE, then re-checked by a separate adversarial fleet that
 defaulted to `UNVERIFIABLE` unless it could independently corroborate from a primary source.

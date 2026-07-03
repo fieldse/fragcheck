@@ -1,16 +1,13 @@
 package cve
 
 import (
-	_ "embed"
 	"fmt"
 	"regexp"
 	"strings"
 
+	"github.com/fieldse/fragcheck/internal/cvedata"
 	"gopkg.in/yaml.v3"
 )
-
-//go:embed data/cves.yaml
-var rawDataset []byte
 
 // cveIDPattern matches a CVE identifier, e.g. CVE-2024-1086.
 var cveIDPattern = regexp.MustCompile(`^CVE-\d{4}-\d{4,}$`)
@@ -25,7 +22,7 @@ var seriesPattern = regexp.MustCompile(`^\d+\.\d+$`)
 // malformed or structurally incomplete dataset so a bad catalogue can never
 // produce silently wrong verdicts.
 func Load() (*Dataset, error) {
-	return parse(rawDataset)
+	return parse(cvedata.Raw)
 }
 
 func parse(raw []byte) (*Dataset, error) {

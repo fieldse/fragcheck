@@ -4,7 +4,7 @@ Chronological record of notable work. Newest entries at the top.
 
 ## 2026-07-01 — Add DirtyClone + pedit COW, fix version-matching false-negative
 
-**Added two CVEs to the dataset** (`internal/cve/data/cves.yaml`), both `verified: false`:
+**Added two CVEs to the dataset** (`internal/cvedata/cves.yaml`), both `verified: false`:
 - **CVE-2026-43503 (DirtyClone)** — shared-frag LPE cluster; `esp4`/`esp6` only (not
   `rxrpc`); kernel.org-authoritative branch data; Debian/Ubuntu `distro_fixed`, RHEL left
   empty (affected, no errata indexed → falls to `likely-vulnerable`).
