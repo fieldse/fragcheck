@@ -49,6 +49,9 @@ Note: Dirty Pipe (CVE-2022-0847) is the conceptual bridge between the two sets �
 - **Preconditions:** autoload-aware (loaded OR built-in OR autoloadable = present); evidence shows loaded-now vs autoload-reachable separately; only **hard blocks** demote to `mitigated`.
 - **Verdicts (5-state):** `vulnerable` / `likely-vulnerable` / `mitigated` / `not-affected` / `unknown`. Unsupported platform → refuse cleanly, non-zero exit, no table.
 - **Data (v2):** `go:embed` YAML CVE defs — per-stable-branch fixed points, per-distro-*release* fixed package versions, `CONFIG_*` gates, required modules, per-CVE userns dependence, unaffected-distro list, CVSS/KEV, remediation. Detection: authoritative per-release package comparison (→ confirmed `vulnerable`), graceful upstream-branch fallback (→ `likely-vulnerable`), required-CONFIG-off → `not-affected`, kernel newer than the mainline fix → `not-affected`.
+  - **`fixed_mainline`** is the *only* upper bound that clears a kernel in a stable series with no branch entry — never "newer than the highest backport" (that is a false-negative; a later series can fork before the fix). Empty → in-range untracked kernels degrade to `likely-vulnerable`.
+  - **Per-line ranges (`affected_from`):** a branch may set `affected_from` instead of/alongside `fixed` to express "this LTS line is vulnerable from X upward, no in-line fix yet." Below `affected_from` the line is `not-affected`; at/above with no `fixed` it is affected. Used for pedit COW's LTS backports. Set the entry's global `introduced` to the *lowest* affected line so the global lower-bound check never clears a vulnerable LTS kernel.
+  - **`kev`** means "listed on the CISA KEV catalog" only — *not* "actively exploited," which is a separate real-world fact kept in prose (e.g. Dirty Frag ESP is actively exploited but `kev: false`).
 - **Output:** default audits all CVEs → pretty table via stdlib `text/tabwriter` + manual ANSI (zero deps); `--json` for machine output. Columns: CVE, nickname, severity (CVSS+KEV), verdict, evidence, remediation.
 - **Testing:** golden `HostFacts` fixtures → asserted verdict tables, table-driven against `detect`.
 
@@ -80,28 +83,35 @@ Exit codes: `0` audit completed (regardless of findings), `1` internal error (e.
 
 ## Known follow-ups
 
+- **Adversarial-verification pass applied (2026-07-02).** A 50-agent research + adversarial-verify
+  sweep (`docs/research/DETECTION-FACTS.md`, `DETECTION-CORRECTIONS.md`, `DATASET-FIX-PLAN.md`,
+  `detection-*.md`) grounded every entry against primary sources (kernel.org CVE feed, MITRE CNA
+  JSON, distro trackers, CISA KEV) and corrected ~20 dataset errors: fabricated branch fixes,
+  AlmaLinux-vs-RHEL NVR confusion, wrong `introduced` bounds, 4 wrong `kev` flags
+  (Copy Fail/OverlayFS → `true`; Dirty Frag ESP/RxRPC → `false`), and the pedit-COW LTS
+  false-negative. `fixed_mainline` backfilled for the whole shared-frag cluster (Copy Fail → 7.0;
+  ESP/RxRPC/Fragnesia → 7.1).
 - The **5 primary CVEs are `verified: true`**, populated from the source-of-truth knowledgebase
-  (`docs/cves.md` / the SecondBrain note). The knowledgebase flags that some point-releases were
-  single-sourced — re-validate against distro trackers before treating a single verdict as gospel.
-- **Missing Debian per-release fixes for Dirty Frag ESP/RxRPC** (`CVE-2026-43284` / `-43500`): the
-  knowledgebase had no Debian DSA, so on Debian these fall to the upstream-branch fallback and
-  report `likely-vulnerable` instead of confirmed `vulnerable`. Add `distro_fixed.debian` once the
-  DSA versions are known.
+  (`docs/cves.md` / the SecondBrain note) and now adversarially confirmed against distro trackers.
 - The **3 legacy CVEs remain `verified: false`** (provisional single-branch data; not in the
-  knowledgebase).
+  knowledgebase). `introduced` corrected for nf_tables UAF (3.15) and netfilter UAF description
+  fixed (anonymous-set mishandling), OverlayFS `kev: true`.
 - **DirtyClone (`CVE-2026-43503`) and pedit COW (`CVE-2026-46331`) are `verified: false`** — added
   from `docs/research/detection-{dirtyclone,peditcow}-*.md` (kernel.org-authoritative branch data,
   live distro trackers). Open items before flipping to `true`:
   - **DirtyClone RHEL**: RHEL 9/10 are "Affected" but no errata/NVR is indexed yet, so `distro_fixed.rhel`
-    is empty and RHEL falls to the upstream-branch fallback (`likely-vulnerable`). Correction vs. the
-    threat-report doc: `rxrpc` is **not** a precondition for this CVE (esp4/esp6 only). SUSE data was
-    single-sourced — re-verify. `introduced: "3.9"` is kernel.org's value but a loose lower bound (the
-    flaw only bites once the shared-frag mechanism exists — pre-mechanism kernels are covered by the
-    43284/43500 entries).
-  - **pedit COW**: fix is mainline-fresh (v7.1-rc7) — **no 6.1.x/6.6.x branch backport exists yet**, so
-    hosts on those LTS series resolve to `unknown` (no per-release fix or matching branch), not
-    `likely-vulnerable`. RHEL 8/9/10 NVRs not indexed; Debian 11's tracker entry is a suspected
-    false-positive (5.10 predates the v5.18 introduction). `introduced: "5.18"` cleanly excludes
-    RHEL 6/7 and Ubuntu ≤16.04.
+    is empty and RHEL falls to the upstream-branch fallback (`likely-vulnerable`). `rxrpc` is **not** a
+    precondition for this CVE (esp4/esp6 only). SUSE data was single-sourced — re-verify.
+    `introduced: "3.9"` is kernel.org's value but a loose lower bound (pre-mechanism kernels are covered
+    by the 43284/43500 entries).
+  - **pedit COW**: the LTS false-negative is now fixed via per-line `affected_from` bounds
+    (4.19.244 / 5.4.195 / 5.10.117 / 5.15.41 / 5.17.9) with `introduced: "4.19"`; 6.1.x/6.6.x have no
+    backport point recorded yet and fall to the upstream-branch fallback (`likely-vulnerable`, no longer
+    `unknown`). RHEL 8/9/10 NVRs still not indexed; Debian 11's tracker entry is a suspected false-positive.
+- **Version-scoped "not affected" gap:** DirtyClone (RHEL 6/7/8 + rhcos), RxRPC (all RHEL), and pedit
+  (RHEL 6/7) are Red-Hat-"Not affected" but the schema can't express a per-release unaffected floor, so
+  those read `likely-vulnerable` on RHEL (false-positive, safe direction). Needs a per-distro
+  `unaffected_releases` mechanism.
 - Verified end-to-end on a real Debian 13 host (kernel 6.12.63-1): Copy Fail confirmed
   `vulnerable`, Fragnesia `not-affected` (espintcp not built), legacy/Dirty Pipe `not-affected`.
+  Sim-verified the reported Fedora 6.19.10 box: Copy Fail `likely-vulnerable` via the new 6.19 branch.

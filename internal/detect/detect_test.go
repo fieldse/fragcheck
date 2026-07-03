@@ -104,12 +104,20 @@ func entryClone() cve.Entry {
 }
 
 // entryPedit is the pedit COW entry: act_pedit + config + userns gated. The
-// 6.1.x/6.6.x LTS series have no branch fix yet (fix is mainline-fresh).
+// flaw was independently backported into several LTS lines with no in-line fix
+// (affected_from lower bounds); the 6.1.x/6.6.x LTS series have neither a fix
+// nor a backport point recorded (fix is mainline-fresh).
 func entryPedit() cve.Entry {
 	return cve.Entry{
 		ID: "CVE-2026-46331", Nickname: "pedit COW", CVSS: 7.8, Verified: false,
-		Introduced: "5.18",
+		Introduced:    "4.19",
+		FixedMainline: "7.1",
 		Branches: []cve.Branch{
+			{Series: "4.19", AffectedFrom: "4.19.244"},
+			{Series: "5.4", AffectedFrom: "5.4.195"},
+			{Series: "5.10", AffectedFrom: "5.10.117"},
+			{Series: "5.15", AffectedFrom: "5.15.41"},
+			{Series: "5.17", AffectedFrom: "5.17.9"},
 			{Series: "6.12", Fixed: "6.12.94"},
 			{Series: "6.18", Fixed: "6.18.36"},
 			{Series: "7.0", Fixed: "7.0.13"},
@@ -403,6 +411,35 @@ func TestEvaluate(t *testing.T) {
 				RunningKernel: model.Readable("4.15.0"),
 			},
 			want: model.StatusNotAffected, wantEvHas: "predates introduction",
+		},
+		{
+			// LTS false-negative fix: a 5.10 kernel at/above the line's backport
+			// point (5.10.117) with no in-line fix is vulnerable, not cleared.
+			name:  "pedit: LTS backported line above lower bound is vulnerable",
+			entry: entryPedit(),
+			facts: model.HostFacts{
+				Distro: model.DistroDebian, DistroVersionID: "12", PackageDBAvailable: true,
+				RunningKernel: model.Readable("5.10.120"),
+				Modules:       map[string]model.ModuleState{"act_pedit": loaded()},
+				Sysctls:       map[string]model.Fact[string]{"kernel.unprivileged_userns_clone": model.Readable("1")},
+				KernelConfigs: map[string]model.Fact[string]{
+					"CONFIG_NET_SCHED": model.Readable("y"), "CONFIG_NET_CLS_ACT": model.Readable("y"), "CONFIG_NET_ACT_PEDIT": model.Readable("m"),
+				},
+			},
+			want: model.StatusLikelyVulnerable, wantEvHas: "no upstream fix recorded",
+		},
+		{
+			// Same 5.10 line, but below the backport point: this line is not yet
+			// affected even though the kernel is >= the global introduced (4.19).
+			name:  "pedit: LTS line below lower bound is not affected",
+			entry: entryPedit(),
+			facts: model.HostFacts{
+				Distro: model.DistroDebian, DistroVersionID: "12", PackageDBAvailable: true,
+				RunningKernel: model.Readable("5.10.50"),
+				Modules:       map[string]model.ModuleState{"act_pedit": loaded()},
+				Sysctls:       map[string]model.Fact[string]{"kernel.unprivileged_userns_clone": model.Readable("1")},
+			},
+			want: model.StatusNotAffected, wantEvHas: "series lower bound",
 		},
 
 		// ---- False-negative regression (the 6.19.10 case) ----
